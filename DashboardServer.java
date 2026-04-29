@@ -3,52 +3,82 @@ import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 import java.util.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 
-/**
- * DashboardServer.java
- * Lightweight HTTP server using built-in Java JDK — NO Tomcat needed.
- * Serves StudentDashboard.html and handles /login and /pbl-detail API calls.
- *
- * Usage: called from Main.java when user picks "Dashboard" option.
- */
 public class DashboardServer {
 
     private static final int PORT = 8080;
     private static final DashboardService svc = new DashboardService();
 
     public static void start() throws Exception {
+
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 
-        // Serve the HTML file
-        server.createContext("/",            DashboardServer::serveHTML);
+        // Serve index.html at root
+        server.createContext("/",            DashboardServer::serveIndex);
+        // Serve StudentDashboard.html at /dashboard
+        server.createContext("/dashboard",   DashboardServer::serveDashboard);
 
-        // API endpoints
+        // New endpoints
+        server.createContext("/add-teacher", DashboardServer::handleAddTeacher);
+        server.createContext("/add-student", DashboardServer::handleAddStudent);
+        server.createContext("/add-slots",   DashboardServer::handleAddSlots);
+        server.createContext("/book-slot",   DashboardServer::handleBookSlot);
+        server.createContext("/slots",       DashboardServer::handleGetSlots);
+
+        // Existing endpoints
         server.createContext("/login",       DashboardServer::handleLogin);
         server.createContext("/pbl-detail",  DashboardServer::handlePblDetail);
 
-        server.setExecutor(null); // default executor
+        server.setExecutor(null);
         server.start();
 
         System.out.println("╔══════════════════════════════════════════════╗");
-        System.out.println("║   EvalEdge Dashboard is running!             ║");
+        System.out.println("║   EvalEdge is running!                       ║");
         System.out.println("║   Open: http://localhost:8080/               ║");
         System.out.println("║   Press Ctrl+C to stop the server.           ║");
         System.out.println("╚══════════════════════════════════════════════╝");
     }
 
-    // ── Serve StudentDashboard.html ───────────────────────────────────────────
-    private static void serveHTML(HttpExchange ex) throws IOException {
+    // ── Serve index.html at / ─────────────────────────────────────────────────
+    private static void serveIndex(HttpExchange ex) throws IOException {
         if (!ex.getRequestMethod().equals("GET")) { ex.sendResponseHeaders(405, -1); return; }
 
-        // Look for the HTML file next to the running .class files
-        File htmlFile = new File("StudentDashboard.html");
-        if (!htmlFile.exists()) {
-            // Try one level up (if running from a bin/ or out/ folder)
-            htmlFile = new File("../StudentDashboard.html");
-        }
+       String path = ex.getRequestURI().getPath();
+if (!path.equals("/") && !path.equals("/index.html")) {
+    ex.sendResponseHeaders(404, -1);
+    return;
+}
+
+        File htmlFile = new File("index.html");
+        if (!htmlFile.exists()) htmlFile = new File("../index.html");
 
         if (!htmlFile.exists()) {
-            String msg = "StudentDashboard.html not found. Place it in: " + new File(".").getAbsolutePath();
+            String msg = "index.html not found in: " + new File(".").getAbsolutePath();
+            ex.sendResponseHeaders(404, msg.length());
+            ex.getResponseBody().write(msg.getBytes());
+            ex.getResponseBody().close();
+            return;
+        }
+
+        byte[] bytes = Files.readAllBytes(htmlFile.toPath());
+        ex.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+        ex.sendResponseHeaders(200, bytes.length);
+        ex.getResponseBody().write(bytes);
+        ex.getResponseBody().close();
+    }
+
+    // ── Serve StudentDashboard.html at /dashboard ─────────────────────────────
+    private static void serveDashboard(HttpExchange ex) throws IOException {
+        if (!ex.getRequestMethod().equals("GET")) { ex.sendResponseHeaders(405, -1); return; }
+
+        File htmlFile = new File("StudentDashboard.html");
+        if (!htmlFile.exists()) htmlFile = new File("../StudentDashboard.html");
+
+        if (!htmlFile.exists()) {
+            String msg = "StudentDashboard.html not found in: " + new File(".").getAbsolutePath();
             ex.sendResponseHeaders(404, msg.length());
             ex.getResponseBody().write(msg.getBytes());
             ex.getResponseBody().close();
@@ -65,48 +95,39 @@ public class DashboardServer {
     // ── POST /login ───────────────────────────────────────────────────────────
     private static void handleLogin(HttpExchange ex) throws IOException {
         setCORS(ex);
-
-        if (ex.getRequestMethod().equals("OPTIONS")) {
-            ex.sendResponseHeaders(200, -1); return;
-        }
+        if (ex.getRequestMethod().equals("OPTIONS")) { ex.sendResponseHeaders(200, -1); return; }
 
         try {
-            // Read POST body: "studentId=1&password=pass123"
-           Map<String, String> params;
+            Map<String, String> params;
+            if (ex.getRequestMethod().equalsIgnoreCase("GET")) {
+                String query = ex.getRequestURI().getQuery();
+                params = parseQuery(query != null ? query : "");
+            } else {
+                String body = new String(ex.getRequestBody().readAllBytes());
+                params = parseQuery(body);
+            }
 
-if (ex.getRequestMethod().equalsIgnoreCase("GET")) {
-    String query = ex.getRequestURI().getQuery();
-    params = parseQuery(query != null ? query : "");
-} else {
-    String body = new String(ex.getRequestBody().readAllBytes());
-    params = parseQuery(body);
-}
+            int studentId   = Integer.parseInt(params.getOrDefault("studentId", "0"));
+            String password = params.getOrDefault("password", "");
 
-int studentId = Integer.parseInt(params.getOrDefault("studentId", "0"));
-String password = params.getOrDefault("password", "");
             Map<String, String> profile = svc.loginStudent(studentId, password);
-
             if (profile == null) {
                 sendJSON(ex, 401, "{\"error\":\"Invalid credentials\"}");
                 return;
             }
 
             List<Map<String, String>> pbls = svc.getStudentPBLs(studentId);
-            String json = buildLoginJSON(profile, pbls);
-            sendJSON(ex, 200, json);
+            sendJSON(ex, 200, buildLoginJSON(profile, pbls));
 
         } catch (Exception e) {
             sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
         }
     }
 
-    // ── GET /pbl-detail?studentId=1&pblId=1 ──────────────────────────────────
+    // ── GET /pbl-detail ───────────────────────────────────────────────────────
     private static void handlePblDetail(HttpExchange ex) throws IOException {
         setCORS(ex);
-
-        if (ex.getRequestMethod().equals("OPTIONS")) {
-            ex.sendResponseHeaders(200, -1); return;
-        }
+        if (ex.getRequestMethod().equals("OPTIONS")) { ex.sendResponseHeaders(200, -1); return; }
 
         try {
             String query = ex.getRequestURI().getQuery();
@@ -115,11 +136,114 @@ String password = params.getOrDefault("password", "");
             int studentId = Integer.parseInt(params.getOrDefault("studentId", "0"));
             int pblId     = Integer.parseInt(params.getOrDefault("pblId",     "0"));
 
-            List<Map<String, String>>              phases = svc.getPhaseDetails(studentId, pblId);
+            List<Map<String, String>>               phases = svc.getPhaseDetails(studentId, pblId);
             Map<Integer, List<Map<String, String>>> meets  = svc.getMeetAttendance(studentId, pblId);
 
-            String json = buildDetailJSON(phases, meets);
-            sendJSON(ex, 200, json);
+            sendJSON(ex, 200, buildDetailJSON(phases, meets));
+
+        } catch (Exception e) {
+            sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
+        }
+    }
+
+    // ── POST /add-teacher ─────────────────────────────────────────────────────
+    private static void handleAddTeacher(HttpExchange ex) throws IOException {
+        setCORS(ex);
+        if (ex.getRequestMethod().equals("OPTIONS")) { ex.sendResponseHeaders(200, -1); return; }
+        try {
+            String body = new String(ex.getRequestBody().readAllBytes());
+            Map<String, String> params = parseQuery(body);
+            String name = params.getOrDefault("name", "");
+            TeacherService ts = new TeacherService();
+            int id = ts.addTeacher(name);
+            sendJSON(ex, 200, "{\"teacher_id\":" + id + "}");
+        } catch (Exception e) {
+            sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
+        }
+    }
+
+    // ── POST /add-student ─────────────────────────────────────────────────────
+    private static void handleAddStudent(HttpExchange ex) throws IOException {
+        setCORS(ex);
+        if (ex.getRequestMethod().equals("OPTIONS")) { ex.sendResponseHeaders(200, -1); return; }
+        try {
+            String body = new String(ex.getRequestBody().readAllBytes());
+            Map<String, String> params = parseQuery(body);
+            String name = params.getOrDefault("name", "");
+            StudentService ss = new StudentService();
+            int id = ss.addStudent(name);
+            sendJSON(ex, 200, "{\"student_id\":" + id + "}");
+        } catch (Exception e) {
+            sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
+        }
+    }
+
+    // ── POST /add-slots ───────────────────────────────────────────────────────
+    private static void handleAddSlots(HttpExchange ex) throws IOException {
+        setCORS(ex);
+        if (ex.getRequestMethod().equals("OPTIONS")) { ex.sendResponseHeaders(200, -1); return; }
+        try {
+            String body = new String(ex.getRequestBody().readAllBytes());
+            Map<String, String> params = parseQuery(body);
+            int teacherId = Integer.parseInt(params.getOrDefault("teacherId", "0"));
+            String day    = params.getOrDefault("day",   "");
+            String start  = params.getOrDefault("start", "");
+            String end    = params.getOrDefault("end",   "");
+            TeacherService ts = new TeacherService();
+            ts.addSlots(teacherId, day, start, end);
+            sendJSON(ex, 200, "{\"status\":\"ok\"}");
+        } catch (Exception e) {
+            sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
+        }
+    }
+
+    // ── POST /book-slot ───────────────────────────────────────────────────────
+    private static void handleBookSlot(HttpExchange ex) throws IOException {
+        setCORS(ex);
+        if (ex.getRequestMethod().equals("OPTIONS")) { ex.sendResponseHeaders(200, -1); return; }
+        try {
+            String body = new String(ex.getRequestBody().readAllBytes());
+            Map<String, String> params = parseQuery(body);
+            int studentId = Integer.parseInt(params.getOrDefault("studentId", "0"));
+            int slotId    = Integer.parseInt(params.getOrDefault("slotId",    "0"));
+            BookingService bs = new BookingService();
+            bs.bookSlot(studentId, slotId);
+            sendJSON(ex, 200, "{\"status\":\"booked\"}");
+        } catch (Exception e) {
+            sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
+        }
+    }
+
+    // ── GET /slots ────────────────────────────────────────────────────────────
+    private static void handleGetSlots(HttpExchange ex) throws IOException {
+        setCORS(ex);
+        if (ex.getRequestMethod().equals("OPTIONS")) { ex.sendResponseHeaders(200, -1); return; }
+        try {
+            String query = ex.getRequestURI().getQuery();
+            Map<String, String> params = parseQuery(query != null ? query : "");
+            int teacherId = Integer.parseInt(params.getOrDefault("teacherId", "0"));
+            String day    = params.getOrDefault("day", "");
+
+            Connection con = DBConnection.getConnection();
+            String sql = "SELECT slot_id, start_time, end_time FROM slots " +
+                         "WHERE teacher_id=? AND day=? AND is_booked=FALSE";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, teacherId);
+            ps.setString(2, day);
+            ResultSet rs = ps.executeQuery();
+
+            StringBuilder sb = new StringBuilder("{\"slots\":[");
+            boolean first = true;
+            while (rs.next()) {
+                if (!first) sb.append(",");
+                sb.append("{\"slot_id\":").append(rs.getInt("slot_id"))
+                  .append(",\"start_time\":\"").append(rs.getTime("start_time")).append("\"")
+                  .append(",\"end_time\":\"").append(rs.getTime("end_time")).append("\"}");
+                first = false;
+            }
+            sb.append("]}");
+            con.close();
+            sendJSON(ex, 200, sb.toString());
 
         } catch (Exception e) {
             sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
@@ -142,7 +266,6 @@ String password = params.getOrDefault("password", "");
         ex.getResponseBody().close();
     }
 
-    /** Parses key=value&key2=value2 query strings / POST bodies. */
     private static Map<String, String> parseQuery(String query) throws Exception {
         Map<String, String> map = new LinkedHashMap<>();
         if (query == null || query.isEmpty()) return map;
@@ -155,8 +278,6 @@ String password = params.getOrDefault("password", "");
         }
         return map;
     }
-
-    // ── JSON builders ─────────────────────────────────────────────────────────
 
     private static String buildLoginJSON(Map<String, String> profile,
                                          List<Map<String, String>> pbls) {

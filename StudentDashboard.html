@@ -615,6 +615,16 @@ body {
 // Point this to your Java backend API base URL.
 // If you add a servlet / REST layer to Main.java, update accordingly.
 const API_BASE = 'http://localhost:8080';
+// Auto-login from URL params (passed from index.html)
+window.addEventListener('load', () => {
+  const p = new URLSearchParams(window.location.search);
+  const id = p.get('studentId'), pw = p.get('password');
+  if (id && pw) {
+    document.getElementById('loginId').value   = id;
+    document.getElementById('loginPass').value = pw;
+    handleLogin(); // auto-submit
+  }
+});
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentStudent = null;

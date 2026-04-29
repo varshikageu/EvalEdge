@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EvalEdge — Evaluation Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset & Tokens ──────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #080c14;
+  --surface:   #0e1422;
+  --card:      #131929;
+  --border:    #1e2d47;
+  --accent:    #2563eb;
+  --accent2:   #0ea5e9;
+  --gold:      #f59e0b;
+  --success:   #10b981;
+  --danger:    #ef4444;
+  --text:      #e2e8f0;
+  --muted:     #64748b;
+  --tag-bg:    rgba(37,99,235,0.15);
+  --radius:    14px;
+  --shadow:    0 8px 32px rgba(0,0,0,0.45);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* ── Animated Background ─────────────────────────── */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(37,99,235,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37,99,235,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+.bg-glow {
+  position: fixed; z-index: 0; pointer-events: none;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.18;
+}
+.glow1 { width:600px;height:600px;background:#2563eb;top:-200px;left:-150px; }
+.glow2 { width:500px;height:500px;background:#0ea5e9;bottom:-100px;right:-100px; }
+.glow3 { width:400px;height:400px;background:#7c3aed;top:40%;right:20%; }
+
+/* ── Shared Screen Wrapper ───────────────────────── */
+.screen {
+  position: relative; z-index: 10;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  padding: 24px;
+}
+
+/* ══════════════════════════════════════════════════
+   SCREEN 1 — WELCOME
+══════════════════════════════════════════════════ */
+#welcomeScreen {
+  text-align: center;
+  animation: fadeUp 0.8s ease both;
+}
+
+.welcome-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(37,99,235,0.12);
+  border: 1px solid rgba(37,99,235,0.3);
+  border-radius: 20px;
+  padding: 6px 18px;
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: #60a5fa;
+  margin-bottom: 32px;
+}
+.welcome-badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #60a5fa;
+  animation: pulse 2s ease infinite;
+}
+
+.welcome-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(52px, 10vw, 96px);
+  font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 40%, #a78bfa 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.welcome-subtitle {
+  font-size: clamp(15px, 2.5vw, 20px);
+  color: var(--muted);
+  max-width: 480px;
+  line-height: 1.6;
+  margin: 0 auto 48px;
+}
+
+.welcome-stats {
+  display: flex; gap: 40px; justify-content: center;
+  margin-bottom: 56px;
+  flex-wrap: wrap;
+}
+.stat-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.stat-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px; font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa, #38bdf8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-label { font-size: 12px; color: var(--muted); letter-spacing: 0.05em; }
+
+.btn-enter {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  border: none; border-radius: 12px;
+  padding: 18px 40px;
+  font-family: 'Syne', sans-serif;
+  font-size: 16px; font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 8px 24px rgba(37,99,235,0.35);
+}
+.btn-enter:hover {
+  opacity: 0.92; transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(37,99,235,0.45);
+}
+.btn-enter:active { transform: translateY(0); }
+.btn-enter-arrow { font-size: 20px; transition: transform 0.2s; }
+.btn-enter:hover .btn-enter-arrow { transform: translateX(4px); }
+
+.welcome-features {
+  display: flex; gap: 16px; justify-content: center;
+  margin-top: 48px; flex-wrap: wrap;
+}
+.feature-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px; color: var(--muted);
+}
+.feature-pill-icon { font-size: 16px; }
+
+/* ══════════════════════════════════════════════════
+   SCREEN 2 — ROLE SELECT
+══════════════════════════════════════════════════ */
+#roleScreen {
+  animation: fadeUp 0.5s ease both;
+}
+
+.role-box {
+  width: 100%; max-width: 480px;
+}
+
+.box-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.box-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px; font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa, #38bdf8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 6px;
+}
+.box-tagline { font-size: 14px; color: var(--muted); }
+
+.role-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-bottom: 24px;
+}
+.role-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s, background 0.2s;
+  position: relative; overflow: hidden;
+}
+.role-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: 0; transition: opacity 0.25s;
+}
+.role-card.teacher-card::before {
+  background: linear-gradient(135deg, rgba(245,158,11,0.08), transparent);
+}
+.role-card.student-card::before {
+  background: linear-gradient(135deg, rgba(37,99,235,0.08), transparent);
+}
+.role-card:hover { transform: translateY(-4px); }
+.role-card:hover::before { opacity: 1; }
+.role-card.teacher-card:hover { border-color: var(--gold); box-shadow: 0 12px 36px rgba(245,158,11,0.2); }
+.role-card.student-card:hover { border-color: var(--accent); box-shadow: 0 12px 36px rgba(37,99,235,0.2); }
+
+.role-icon {
+  font-size: 36px; margin-bottom: 14px;
+  display: block;
+}
+.role-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.role-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.back-link {
+  text-align: center;
+  margin-top: 20px;
+}
+.back-link button {
+  background: none; border: none;
+  color: var(--muted); font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.back-link button:hover { color: var(--text); }
+
+/* ══════════════════════════════════════════════════
+   SCREEN 3 — TEACHER LOGIN
+══════════════════════════════════════════════════ */
+#teacherLoginScreen {
+  animation: fadeUp 0.5s ease both;
+}
+
+/* ══════════════════════════════════════════════════
+   SCREEN 4 — STUDENT CHOICE
+══════════════════════════════════════════════════ */
+#studentChoiceScreen {
+  animation: fadeUp 0.5s ease both;
+}
+
+.choice-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-bottom: 24px;
+}
+.choice-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+  position: relative; overflow: hidden;
+}
+.choice-card:hover { transform: translateY(-4px); }
+.choice-card.book-card:hover { border-color: var(--success); box-shadow: 0 12px 36px rgba(16,185,129,0.2); }
+.choice-card.dash-card:hover { border-color: var(--accent2); box-shadow: 0 12px 36px rgba(14,165,233,0.2); }
+
+.choice-icon { font-size: 38px; margin-bottom: 14px; display: block; }
+.choice-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.choice-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* ══════════════════════════════════════════════════
+   SHARED FORM BOX
+══════════════════════════════════════════════════ */
+.form-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 48px 40px;
+  width: 100%; max-width: 440px;
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+.form-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800;
+  margin-bottom: 6px;
+}
+.form-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+
+.field-label {
+  font-size: 11px; font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+.field-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  margin-bottom: 18px;
+}
+.field-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.18);
+}
+.field-input::placeholder { color: var(--muted); }
+
+select.field-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+select.field-input option { background: var(--surface); }
+
+.btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  border: none; border-radius: 10px;
+  padding: 15px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-top: 6px;
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.form-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 14px;
+  text-align: center;
+  min-height: 18px;
+}
+.form-success {
+  color: var(--success);
+  font-size: 13px;
+  margin-top: 14px;
+  text-align: center;
+  min-height: 18px;
+}
+
+.toggle-row {
+  display: flex; gap: 8px; margin-bottom: 24px;
+}
+.toggle-btn {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px; font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.toggle-btn.active {
+  background: rgba(37,99,235,0.15);
+  border-color: var(--accent);
+  color: #60a5fa;
+}
+
+/* ══════════════════════════════════════════════════
+   SCREEN 5 — SLOT BOOKING
+══════════════════════════════════════════════════ */
+#slotBookingScreen {
+  animation: fadeUp 0.5s ease both;
+  align-items: stretch;
+  padding: 36px;
+}
+
+.booking-layout {
+  position: relative; z-index: 10;
+  max-width: 960px; margin: 0 auto; width: 100%;
+}
+
+.booking-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 36px;
+  flex-wrap: wrap; gap: 16px;
+}
+.booking-topbar-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa, #38bdf8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.student-pill {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  padding: 6px 16px 6px 6px;
+}
+.student-pill-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 700; color: #fff;
+}
+.student-pill-name { font-size: 13px; font-weight: 500; }
+
+.btn-sm {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px; cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-sm:hover { background: var(--border); color: var(--text); }
+
+/* Booking Steps */
+.booking-steps {
+  display: flex; gap: 0; margin-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.booking-step {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 24px;
+  font-size: 13px; font-weight: 500;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  position: relative; bottom: -1px;
+  transition: color 0.2s, border-color 0.2s;
+}
+.booking-step.active { color: var(--text); border-bottom-color: var(--accent); }
+.booking-step.done { color: var(--success); }
+.step-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  transition: all 0.2s;
+}
+.booking-step.active .step-num {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.booking-step.done .step-num {
+  background: var(--success); border-color: var(--success); color: #fff;
+}
+
+/* Step Panels */
+.step-panel { display: none; animation: fadeUp 0.35s ease both; }
+.step-panel.active { display: block; }
+
+/* Search Form */
+.search-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  margin-bottom: 24px;
+}
+.search-card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.search-card-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+.search-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 14px; align-items: end;
+}
+@media (max-width: 640px) {
+  .search-grid { grid-template-columns: 1fr; }
+  .role-cards, .choice-cards { grid-template-columns: 1fr; }
+  .booking-steps { overflow-x: auto; }
+  .form-box { padding: 36px 24px; }
+  .slotBookingScreen { padding: 20px; }
+}
+
+.search-btn {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff; border: none; border-radius: 10px;
+  padding: 13px 28px;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.search-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* Slots Grid */
+.slots-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+}
+.slots-header-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted);
+}
+.slots-count {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(16,185,129,0.12);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px; color: var(--success); font-weight: 600;
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.slot-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s, background 0.2s;
+  position: relative;
+}
+.slot-card:hover {
+  border-color: var(--success);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(16,185,129,0.15);
+}
+.slot-card.selected {
+  border-color: var(--success);
+  background: rgba(16,185,129,0.08);
+}
+.slot-card.selected::after {
+  content: '✓';
+  position: absolute; top: 10px; right: 12px;
+  color: var(--success); font-size: 14px; font-weight: 700;
+}
+.slot-id {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.slot-time {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px; font-weight: 700;
+  margin-bottom: 4px;
+}
+.slot-day { font-size: 12px; color: var(--muted); }
+
+.slot-empty {
+  text-align: center; padding: 48px 24px;
+  color: var(--muted); font-size: 14px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.slot-empty-icon { font-size: 32px; margin-bottom: 12px; }
+
+/* Confirmation Card */
+.confirm-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  text-align: center;
+  max-width: 520px; margin: 0 auto;
+}
+.confirm-icon { font-size: 52px; margin-bottom: 20px; }
+.confirm-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800;
+  margin-bottom: 8px;
+}
+.confirm-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+.confirm-details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+.confirm-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.confirm-row:last-child { border-bottom: none; }
+.confirm-row-label { color: var(--muted); }
+.confirm-row-val { font-weight: 600; color: var(--text); }
+
+.btn-confirm {
+  width: 100%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff; border: none; border-radius: 10px;
+  padding: 15px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-bottom: 12px;
+}
+.btn-confirm:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* Success State */
+.success-card {
+  background: var(--card);
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: var(--radius);
+  padding: 56px 40px;
+  text-align: center;
+  max-width: 480px; margin: 0 auto;
+  box-shadow: 0 0 48px rgba(16,185,129,0.08);
+}
+.success-icon {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: rgba(16,185,129,0.15);
+  border: 2px solid rgba(16,185,129,0.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  margin: 0 auto 24px;
+}
+.success-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px; font-weight: 800;
+  color: var(--success);
+  margin-bottom: 10px;
+}
+.success-sub { font-size: 15px; color: var(--muted); margin-bottom: 36px; line-height: 1.6; }
+
+.btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-outline {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px;
+  padding: 12px 24px;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.btn-outline:hover { background: var(--border); }
+
+/* ── Loading Overlay ─────────────────────────────── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(8,12,20,0.85);
+  backdrop-filter: blur(8px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px;
+}
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; color: var(--muted);
+}
+
+/* ── Toast ───────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 32px; right: 32px; z-index: 300;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 20px;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  animation: slideIn 0.35s ease;
+  max-width: 320px;
+}
+.toast.success { border-color: rgba(16,185,129,0.4); }
+.toast.error   { border-color: rgba(239,68,68,0.4); }
+.toast-icon { font-size: 20px; }
+
+/* ── Keyframes ───────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- Background decoration -->
+<div class="bg-grid"></div>
+<div class="bg-glow glow1"></div>
+<div class="bg-glow glow2"></div>
+<div class="bg-glow glow3"></div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading…</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 1 — WELCOME
+══════════════════════════════════════════════════ -->
+<div class="screen" id="welcomeScreen">
+  <div class="welcome-badge">
+    <div class="welcome-badge-dot"></div>
+    Academic Evaluation System
+  </div>
+
+  <div class="welcome-logo">EvalEdge</div>
+  <div class="welcome-subtitle">
+    A smart platform for slot booking, project tracking,
+    and evaluation management — built for students and teachers.
+  </div>
+
+  <div class="welcome-stats">
+    <div class="stat-item">
+      <div class="stat-num">3</div>
+      <div class="stat-label">PBL Phases</div>
+    </div>
+    <div class="stat-item" style="padding: 0 40px; border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
+      <div class="stat-num">30m</div>
+      <div class="stat-label">Slot Duration</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">Live</div>
+      <div class="stat-label">Dashboard</div>
+    </div>
+  </div>
+
+  <button class="btn-enter" onclick="goTo('roleScreen')">
+    Enter Portal
+    <span class="btn-enter-arrow">→</span>
+  </button>
+
+  <div class="welcome-features">
+    <div class="feature-pill">
+      <span class="feature-pill-icon">📅</span>
+      Slot Booking
+    </div>
+    <div class="feature-pill">
+      <span class="feature-pill-icon">📊</span>
+      Live Dashboard
+    </div>
+    <div class="feature-pill">
+      <span class="feature-pill-icon">🎓</span>
+      PBL Tracking
+    </div>
+    <div class="feature-pill">
+      <span class="feature-pill-icon">✅</span>
+      Attendance
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 2 — ROLE SELECT
+══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="roleScreen">
+  <div class="role-box">
+    <div class="box-header">
+      <div class="box-logo">EvalEdge</div>
+      <div class="box-tagline">Who are you signing in as?</div>
+    </div>
+
+    <div class="role-cards">
+      <div class="role-card teacher-card" onclick="goTo('teacherLoginScreen')">
+        <span class="role-icon">👨‍🏫</span>
+        <div class="role-name">Teacher</div>
+        <div class="role-desc">Manage slots, evaluate PBLs, track attendance</div>
+      </div>
+      <div class="role-card student-card" onclick="goTo('studentChoiceScreen')">
+        <span class="role-icon">🎓</span>
+        <div class="role-name">Student</div>
+        <div class="role-desc">Book slots, view your projects and scores</div>
+      </div>
+    </div>
+
+    <div class="back-link">
+      <button onclick="goTo('welcomeScreen')">← Back to Welcome</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 3 — TEACHER LOGIN / REGISTER
+══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="teacherLoginScreen">
+  <div class="form-box">
+    <div class="form-title">Teacher Portal</div>
+    <div class="form-subtitle">Sign in or create a teacher account</div>
+
+    <div class="toggle-row">
+      <button class="toggle-btn active" id="teacherExistingBtn" onclick="switchTeacherMode('existing')">Existing Teacher</button>
+      <button class="toggle-btn"       id="teacherNewBtn"      onclick="switchTeacherMode('new')">New Teacher</button>
+    </div>
+
+    <!-- Existing teacher fields -->
+    <div id="teacherExistingFields">
+      <label class="field-label">Teacher ID</label>
+      <input type="number" class="field-input" id="teacherIdInput" placeholder="Enter your Teacher ID" />
+    </div>
+
+    <!-- New teacher fields -->
+    <div id="teacherNewFields" class="hidden">
+      <label class="field-label">Full Name</label>
+      <input type="text" class="field-input" id="teacherNameInput" placeholder="e.g. Dr. Anjali Sharma" />
+    </div>
+
+    <button class="btn-primary" onclick="handleTeacherLogin()">Continue →</button>
+    <div class="form-error" id="teacherError"></div>
+
+    <div class="back-link" style="margin-top:20px;">
+      <button onclick="goTo('roleScreen')">← Back to Role Select</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 4 — STUDENT CHOICE
+══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="studentChoiceScreen">
+  <div class="role-box">
+    <div class="box-header">
+      <div class="box-logo">EvalEdge</div>
+      <div class="box-tagline">What would you like to do?</div>
+    </div>
+
+    <div class="choice-cards">
+      <div class="choice-card book-card" onclick="goTo('studentBookingLoginScreen')">
+        <span class="choice-icon">📅</span>
+        <div class="choice-name">Book a Slot</div>
+        <div class="choice-desc">Find available teacher slots and book your evaluation session</div>
+      </div>
+      <div class="choice-card dash-card" onclick="goTo('studentDashLoginScreen')">
+        <span class="choice-icon">📊</span>
+        <div class="choice-name">View Dashboard</div>
+        <div class="choice-desc">See your PBL progress, scores, and attendance records</div>
+      </div>
+    </div>
+
+    <div class="back-link">
+      <button onclick="goTo('roleScreen')">← Back to Role Select</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 5 — STUDENT LOGIN (for Booking)
+══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="studentBookingLoginScreen">
+  <div class="form-box">
+    <div class="form-title">📅 Book a Slot</div>
+    <div class="form-subtitle">Sign in or register to continue</div>
+
+    <div class="toggle-row">
+      <button class="toggle-btn active" id="bookExistingBtn" onclick="switchBookingMode('existing')">Existing Student</button>
+      <button class="toggle-btn"       id="bookNewBtn"       onclick="switchBookingMode('new')">New Student</button>
+    </div>
+
+    <div id="bookExistingFields">
+      <label class="field-label">Student ID</label>
+      <input type="number" class="field-input" id="bookStudentId" placeholder="Enter your Student ID" />
+    </div>
+
+    <div id="bookNewFields" class="hidden">
+      <label class="field-label">Full Name</label>
+      <input type="text" class="field-input" id="bookStudentName" placeholder="e.g. Riya Mehta" />
+    </div>
+
+    <button class="btn-primary" onclick="handleBookingLogin()">Continue →</button>
+    <div class="form-error" id="bookLoginError"></div>
+    <div class="form-success" id="bookLoginSuccess"></div>
+
+    <div class="back-link" style="margin-top:20px;">
+      <button onclick="goTo('studentChoiceScreen')">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 6 — STUDENT DASHBOARD LOGIN
+══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="studentDashLoginScreen">
+  <div class="form-box">
+    <div class="form-title">📊 Student Dashboard</div>
+    <div class="form-subtitle">Sign in to view your progress</div>
+
+    <label class="field-label">Student ID</label>
+    <input type="number" class="field-input" id="dashStudentId" placeholder="e.g. 1001" />
+
+    <label class="field-label">Password</label>
+    <input type="password" class="field-input" id="dashPassword" placeholder="Enter your password" />
+
+    <button class="btn-primary" onclick="handleDashboardLogin()">Open Dashboard →</button>
+    <div class="form-error" id="dashLoginError"></div>
+
+    <div class="back-link" style="margin-top:20px;">
+      <button onclick="goTo('studentChoiceScreen')">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 7 — SLOT BOOKING FLOW
+══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="slotBookingScreen" style="align-items:stretch; padding:36px;">
+  <div class="booking-layout">
+
+    <!-- Top Bar -->
+    <div class="booking-topbar">
+      <div class="booking-topbar-logo">EvalEdge</div>
+      <div class="topbar-right">
+        <div class="student-pill">
+          <div class="student-pill-avatar" id="bookingAvatar">?</div>
+          <div class="student-pill-name" id="bookingStudentName">Student</div>
+        </div>
+        <button class="btn-sm" onclick="goTo('studentChoiceScreen')">← Back</button>
+        <button class="btn-sm" onclick="goTo('welcomeScreen')" style="color:var(--danger);">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="booking-steps">
+      <div class="booking-step active" id="step1Indicator">
+        <div class="step-num">1</div>
+        Search Slots
+      </div>
+      <div class="booking-step" id="step2Indicator">
+        <div class="step-num">2</div>
+        Select Slot
+      </div>
+      <div class="booking-step" id="step3Indicator">
+        <div class="step-num">3</div>
+        Confirm
+      </div>
+    </div>
+
+    <!-- Step 1: Search -->
+    <div class="step-panel active" id="stepPanel1">
+      <div class="search-card">
+        <div class="search-card-title">Find Available Slots</div>
+        <div class="search-card-sub">Enter a teacher ID and day to see their available slots</div>
+        <div class="search-grid">
+          <div>
+            <label class="field-label" style="margin-bottom:8px;">Teacher ID</label>
+            <input type="number" class="field-input" id="searchTeacherId" placeholder="e.g. 1" style="margin-bottom:0;" />
+          </div>
+          <div>
+            <label class="field-label" style="margin-bottom:8px;">Day</label>
+            <select class="field-input" id="searchDay" style="margin-bottom:0;">
+              <option value="">Select day…</option>
+              <option>Monday</option>
+              <option>Tuesday</option>
+              <option>Wednesday</option>
+              <option>Thursday</option>
+              <option>Friday</option>
+              <option>Saturday</option>
+            </select>
+          </div>
+          <button class="search-btn" onclick="searchSlots()">Search →</button>
+        </div>
+        <div class="form-error" id="searchError" style="text-align:left; margin-top:12px;"></div>
+      </div>
+
+      <!-- Slots results -->
+      <div id="slotsResult" class="hidden">
+        <div class="slots-header">
+          <div class="slots-header-title">Available Slots</div>
+          <div class="slots-count" id="slotsCount">0 slots</div>
+        </div>
+        <div class="slots-grid" id="slotsGrid"></div>
+        <div style="text-align:right;">
+          <button class="btn-primary" style="width:auto; padding:13px 32px;" onclick="goToStep(2)" id="proceedBtn" disabled>
+            Proceed to Confirm →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Confirm -->
+    <div class="step-panel" id="stepPanel2">
+      <div class="confirm-card">
+        <div class="confirm-icon">🗓️</div>
+        <div class="confirm-title">Confirm Your Booking</div>
+        <div class="confirm-sub">Review the details below before confirming your slot.</div>
+
+        <div class="confirm-details">
+          <div class="confirm-row">
+            <span class="confirm-row-label">Student</span>
+            <span class="confirm-row-val" id="confirmStudentName">—</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">Student ID</span>
+            <span class="confirm-row-val" id="confirmStudentId">—</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">Slot ID</span>
+            <span class="confirm-row-val" id="confirmSlotId">—</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">Time</span>
+            <span class="confirm-row-val" id="confirmSlotTime">—</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">Day</span>
+            <span class="confirm-row-val" id="confirmSlotDay">—</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">Teacher ID</span>
+            <span class="confirm-row-val" id="confirmTeacherId">—</span>
+          </div>
+        </div>
+
+        <button class="btn-confirm" onclick="confirmBooking()">✓ Confirm Booking</button>
+        <button class="btn-outline" onclick="goToStep(1)">← Change Slot</button>
+        <div class="form-error" id="confirmError" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div class="step-panel" id="stepPanel3">
+      <div class="success-card">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Slot Booked!</div>
+        <div class="success-sub" id="successMessage">
+          Your slot has been successfully booked. Show up on time!
+        </div>
+        <div class="btn-row">
+          <button class="btn-outline" onclick="resetBooking()">Book Another Slot</button>
+          <button class="btn-outline" style="border-color: var(--accent); color: #60a5fa;" onclick="goTo('welcomeScreen')">Back to Home</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TEACHER ADD-SLOTS SCREEN (after login)
+══════════════════════════════════════════════════ -->
+<div class="screen hidden" id="teacherSlotsScreen" style="align-items:stretch; padding:36px;">
+  <div class="booking-layout">
+    <div class="booking-topbar">
+      <div class="booking-topbar-logo">EvalEdge — Teacher</div>
+      <div class="topbar-right">
+        <div class="student-pill">
+          <div class="student-pill-avatar" id="teacherAvatar">T</div>
+          <div class="student-pill-name" id="teacherDisplayName">Teacher</div>
+        </div>
+        <button class="btn-sm" onclick="goTo('welcomeScreen')" style="color:var(--danger);">Sign Out</button>
+      </div>
+    </div>
+
+    <div class="form-box" style="max-width:520px; margin:0 auto;">
+      <div class="form-title">Add Availability Slots</div>
+      <div class="form-subtitle">Define your available time blocks (auto-split into 30-min slots)</div>
+
+      <label class="field-label">Day</label>
+      <select class="field-input" id="slotDay">
+        <option value="">Select day…</option>
+        <option>Monday</option>
+        <option>Tuesday</option>
+        <option>Wednesday</option>
+        <option>Thursday</option>
+        <option>Friday</option>
+        <option>Saturday</option>
+      </select>
+
+      <label class="field-label">Start Time (HH:MM)</label>
+      <input type="time" class="field-input" id="slotStart" />
+
+      <label class="field-label">End Time (HH:MM)</label>
+      <input type="time" class="field-input" id="slotEnd" />
+
+      <button class="btn-primary" onclick="handleAddSlots()">Add Slots →</button>
+      <div class="form-error" id="slotError"></div>
+      <div class="form-success" id="slotSuccess"></div>
+
+      <!-- Preview of slots that will be generated -->
+      <div id="slotPreview" class="hidden" style="margin-top:24px;">
+        <div class="slots-header">
+          <div class="slots-header-title">Preview</div>
+          <div class="slots-count" id="previewCount">0 slots</div>
+        </div>
+        <div class="slots-grid" id="previewGrid"></div>
+      </div>
+
+      <div class="back-link" style="margin-top:16px;">
+        <button onclick="goTo('roleScreen')">← Back to Role Select</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8080';
+
+// ── App State ──────────────────────────────────────────────────────────────────
+const state = {
+  studentId:   null,
+  studentName: 'Student',
+  isNewStudent: false,
+  teacherId:   null,
+  teacherName: 'Teacher',
+  isNewTeacher: false,
+  selectedSlot: null,
+  searchDay:    '',
+};
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+const screens = [
+  'welcomeScreen','roleScreen','teacherLoginScreen','studentChoiceScreen',
+  'studentBookingLoginScreen','studentDashLoginScreen',
+  'slotBookingScreen','teacherSlotsScreen'
+];
+
+function goTo(id) {
+  screens.forEach(s => document.getElementById(s).classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+function showLoading(v, msg='Loading…') {
+  document.getElementById('loadingText').textContent = msg;
+  document.getElementById('loadingOverlay').classList.toggle('hidden', !v);
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-icon">${type==='success'?'✅':'❌'}</span><span>${msg}</span>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── Initials ─────────────────────────────────────────────────────────────────
+function initials(name) {
+  if (!name) return '?';
+  return name.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+// ══════════════════════════════════════════════════
+// TEACHER FLOW
+// ══════════════════════════════════════════════════
+let teacherMode = 'existing';
+
+function switchTeacherMode(mode) {
+  teacherMode = mode;
+  document.getElementById('teacherExistingBtn').classList.toggle('active', mode==='existing');
+  document.getElementById('teacherNewBtn').classList.toggle('active', mode==='new');
+  document.getElementById('teacherExistingFields').classList.toggle('hidden', mode!=='existing');
+  document.getElementById('teacherNewFields').classList.toggle('hidden', mode!=='new');
+  document.getElementById('teacherError').textContent = '';
+}
+
+async function handleTeacherLogin() {
+  const errEl = document.getElementById('teacherError');
+  errEl.textContent = '';
+
+  if (teacherMode === 'existing') {
+    const id = document.getElementById('teacherIdInput').value.trim();
+    if (!id) { errEl.textContent = 'Please enter your Teacher ID.'; return; }
+    state.teacherId   = parseInt(id);
+    state.teacherName = 'Teacher #' + id;
+    state.isNewTeacher = false;
+  } else {
+    const name = document.getElementById('teacherNameInput').value.trim();
+    if (!name) { errEl.textContent = 'Please enter your name.'; return; }
+
+    showLoading(true, 'Creating teacher account…');
+    try {
+      const res = await fetch(`${API_BASE}/add-teacher`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: `name=${encodeURIComponent(name)}`
+      });
+      if (res.ok) {
+        const data = await res.json();
+        state.teacherId   = data.teacher_id || data.id || 0;
+        state.teacherName = name;
+      } else {
+        // Fallback: use name, show teacher panel anyway
+        state.teacherId   = 0;
+        state.teacherName = name;
+      }
+    } catch(e) {
+      // Server may not have this endpoint yet — use local state
+      state.teacherId   = 0;
+      state.teacherName = name;
+    }
+    showLoading(false);
+    state.isNewTeacher = true;
+  }
+
+  // Render teacher screen
+  document.getElementById('teacherAvatar').textContent      = initials(state.teacherName);
+  document.getElementById('teacherDisplayName').textContent = state.teacherName;
+  if (state.teacherId) {
+    document.getElementById('teacherDisplayName').textContent =
+      state.teacherName + (state.isNewTeacher ? ` (ID: ${state.teacherId})` : '');
+  }
+  goTo('teacherSlotsScreen');
+}
+
+// ── Add Slots (Teacher) ───────────────────────────────────────────────────────
+// Live preview of slots before submission
+document.addEventListener('DOMContentLoaded', () => {
+  ['slotDay','slotStart','slotEnd'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateSlotPreview);
+  });
+});
+
+function updateSlotPreview() {
+  const day   = document.getElementById('slotDay').value;
+  const start = document.getElementById('slotStart').value;
+  const end   = document.getElementById('slotEnd').value;
+
+  if (!day || !start || !end) {
+    document.getElementById('slotPreview').classList.add('hidden');
+    return;
+  }
+
+  const slots = generateSlotPreviews(start, end);
+  if (!slots.length) {
+    document.getElementById('slotPreview').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('previewCount').textContent = slots.length + ' slot' + (slots.length>1?'s':'');
+  const grid = document.getElementById('previewGrid');
+  grid.innerHTML = slots.map((s,i) => `
+    <div class="slot-card" style="cursor:default; border-color: rgba(37,99,235,0.3);">
+      <div class="slot-id">Preview #${i+1}</div>
+      <div class="slot-time">${s.start} – ${s.end}</div>
+      <div class="slot-day">${day}</div>
+    </div>
+  `).join('');
+  document.getElementById('slotPreview').classList.remove('hidden');
+}
+
+function generateSlotPreviews(start, end) {
+  const slots = [];
+  let [sh, sm] = start.split(':').map(Number);
+  let [eh, em] = end.split(':').map(Number);
+  let startMins = sh * 60 + sm;
+  const endMins = eh * 60 + em;
+  while (startMins + 30 <= endMins) {
+    const s = fmt(startMins), e = fmt(startMins + 30);
+    slots.push({ start: s, end: e });
+    startMins += 30;
+  }
+  return slots;
+}
+
+function fmt(mins) {
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+async function handleAddSlots() {
+  const errEl  = document.getElementById('slotError');
+  const succEl = document.getElementById('slotSuccess');
+  errEl.textContent  = '';
+  succEl.textContent = '';
+
+  const day   = document.getElementById('slotDay').value;
+  const start = document.getElementById('slotStart').value;
+  const end   = document.getElementById('slotEnd').value;
+
+  if (!day)   { errEl.textContent = 'Please select a day.'; return; }
+  if (!start) { errEl.textContent = 'Please enter a start time.'; return; }
+  if (!end)   { errEl.textContent = 'Please enter an end time.'; return; }
+  if (start >= end) { errEl.textContent = 'End time must be after start time.'; return; }
+
+  const teacherId = state.teacherId;
+  if (!teacherId) {
+    errEl.textContent = 'Teacher ID is missing. Please go back and log in again.'; return;
+  }
+
+  showLoading(true, 'Adding slots…');
+  try {
+    const res = await fetch(`${API_BASE}/add-slots`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: `teacherId=${teacherId}&day=${encodeURIComponent(day)}&start=${start}&end=${end}`
+    });
+
+    if (res.ok) {
+      const previews = generateSlotPreviews(start, end);
+      succEl.textContent = `✓ ${previews.length} slot(s) added for ${day}!`;
+      toast(`${previews.length} slot(s) added successfully!`);
+      document.getElementById('slotDay').value   = '';
+      document.getElementById('slotStart').value = '';
+      document.getElementById('slotEnd').value   = '';
+      document.getElementById('slotPreview').classList.add('hidden');
+    } else {
+      errEl.textContent = 'Failed to add slots. Check the server connection.';
+    }
+  } catch(e) {
+    // API not reachable — show friendly message
+    errEl.textContent = 'Could not connect to server (localhost:8080). Make sure the Java backend is running.';
+  }
+  showLoading(false);
+}
+
+// ══════════════════════════════════════════════════
+// STUDENT BOOKING FLOW
+// ══════════════════════════════════════════════════
+let bookingMode = 'existing';
+
+function switchBookingMode(mode) {
+  bookingMode = mode;
+  document.getElementById('bookExistingBtn').classList.toggle('active', mode==='existing');
+  document.getElementById('bookNewBtn').classList.toggle('active', mode==='new');
+  document.getElementById('bookExistingFields').classList.toggle('hidden', mode!=='existing');
+  document.getElementById('bookNewFields').classList.toggle('hidden', mode!=='new');
+  document.getElementById('bookLoginError').textContent   = '';
+  document.getElementById('bookLoginSuccess').textContent = '';
+}
+
+async function handleBookingLogin() {
+  const errEl  = document.getElementById('bookLoginError');
+  const succEl = document.getElementById('bookLoginSuccess');
+  errEl.textContent  = '';
+  succEl.textContent = '';
+
+  if (bookingMode === 'existing') {
+    const id = document.getElementById('bookStudentId').value.trim();
+    if (!id) { errEl.textContent = 'Please enter your Student ID.'; return; }
+    state.studentId   = parseInt(id);
+    state.studentName = 'Student #' + id;
+    state.isNewStudent = false;
+  } else {
+    const name = document.getElementById('bookStudentName').value.trim();
+    if (!name) { errEl.textContent = 'Please enter your name.'; return; }
+
+    showLoading(true, 'Creating student account…');
+    try {
+      const res = await fetch(`${API_BASE}/add-student`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: `name=${encodeURIComponent(name)}`
+      });
+      if (res.ok) {
+        const data = await res.json();
+        state.studentId   = data.student_id || data.id || 0;
+        state.studentName = name;
+        succEl.textContent = `✓ Account created! Your Student ID is: ${state.studentId}`;
+      } else {
+        state.studentId   = 0;
+        state.studentName = name;
+      }
+    } catch(e) {
+      state.studentId   = 0;
+      state.studentName = name;
+    }
+    showLoading(false);
+    state.isNewStudent = true;
+  }
+
+  // Update booking screen avatar
+  document.getElementById('bookingAvatar').textContent      = initials(state.studentName);
+  document.getElementById('bookingStudentName').textContent = state.studentName;
+
+  // Go to booking flow
+  setTimeout(() => goTo('slotBookingScreen'), state.isNewStudent ? 1500 : 0);
+  resetBooking();
+}
+
+// ── Slot Search ───────────────────────────────────────────────────────────────
+let availableSlots = [];
+
+async function searchSlots() {
+  const errEl    = document.getElementById('searchError');
+  const teacherId = document.getElementById('searchTeacherId').value.trim();
+  const day       = document.getElementById('searchDay').value;
+
+  errEl.textContent = '';
+
+  if (!teacherId) { errEl.textContent = 'Please enter a Teacher ID.'; return; }
+  if (!day)       { errEl.textContent = 'Please select a day.'; return; }
+
+  state.searchDay = day;
+
+  showLoading(true, 'Searching slots…');
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/slots?teacherId=${teacherId}&day=${encodeURIComponent(day)}`
+    );
+
+    if (!res.ok) throw new Error('Bad response');
+    const data = await res.json();
+    availableSlots = data.slots || data || [];
+
+  } catch(e) {
+    // Backend might not have a /slots GET endpoint yet — show friendly error
+    availableSlots = [];
+    errEl.textContent = 'Could not connect to server. Make sure the Java backend is running on port 8080.';
+    showLoading(false);
+    return;
+  }
+
+  showLoading(false);
+  renderSlots(availableSlots, day);
+}
+
+function renderSlots(slots, day) {
+  const resultDiv = document.getElementById('slotsResult');
+  const grid      = document.getElementById('slotsGrid');
+  const countEl   = document.getElementById('slotsCount');
+  const proceedBtn= document.getElementById('proceedBtn');
+
+  resultDiv.classList.remove('hidden');
+  state.selectedSlot = null;
+  proceedBtn.disabled = true;
+
+  countEl.textContent = slots.length + ' slot' + (slots.length!==1?'s':'') + ' available';
+
+  if (!slots.length) {
+    grid.innerHTML = `
+      <div class="slot-empty" style="grid-column:1/-1;">
+        <div class="slot-empty-icon">📭</div>
+        No available slots for ${day}. Try a different day or teacher.
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = slots.map(s => `
+    <div class="slot-card" id="slot_${s.slot_id}" onclick="selectSlot(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+      <div class="slot-id">Slot #${s.slot_id}</div>
+      <div class="slot-time">${s.start_time} – ${s.end_time}</div>
+      <div class="slot-day">${day}</div>
+    </div>
+  `).join('');
+}
+
+function selectSlot(slot) {
+  // Deselect all
+  document.querySelectorAll('.slot-card').forEach(c => c.classList.remove('selected'));
+  // Select this one
+  document.getElementById('slot_' + slot.slot_id).classList.add('selected');
+  state.selectedSlot = slot;
+  document.getElementById('proceedBtn').disabled = false;
+}
+
+// ── Step Navigation ───────────────────────────────────────────────────────────
+function goToStep(n) {
+  if (n === 2 && !state.selectedSlot) {
+    toast('Please select a slot first.', 'error'); return;
+  }
+
+  // Update step indicators
+  for (let i = 1; i <= 3; i++) {
+    const ind = document.getElementById('step'+i+'Indicator');
+    const panel = document.getElementById('stepPanel'+i);
+    ind.classList.remove('active','done');
+    panel.classList.remove('active');
+    if (i < n)      ind.classList.add('done');
+    else if (i===n) ind.classList.add('active');
+  }
+  document.getElementById('stepPanel'+n).classList.add('active');
+
+  // Populate confirm screen
+  if (n === 2) {
+    const s = state.selectedSlot;
+    document.getElementById('confirmStudentName').textContent = state.studentName;
+    document.getElementById('confirmStudentId').textContent  = state.studentId || '—';
+    document.getElementById('confirmSlotId').textContent     = s.slot_id;
+    document.getElementById('confirmSlotTime').textContent   = s.start_time + ' – ' + s.end_time;
+    document.getElementById('confirmSlotDay').textContent    = state.searchDay;
+    document.getElementById('confirmTeacherId').textContent  = document.getElementById('searchTeacherId').value;
+  }
+}
+
+// ── Confirm Booking ───────────────────────────────────────────────────────────
+async function confirmBooking() {
+  const errEl = document.getElementById('confirmError');
+  errEl.textContent = '';
+
+  const studentId = state.studentId;
+  const slotId    = state.selectedSlot?.slot_id;
+
+  if (!studentId || !slotId) {
+    errEl.textContent = 'Missing student or slot information.'; return;
+  }
+
+  showLoading(true, 'Booking your slot…');
+
+  try {
+    const res = await fetch(`${API_BASE}/book-slot`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: `studentId=${studentId}&slotId=${slotId}`
+    });
+
+    if (res.ok) {
+      const s = state.selectedSlot;
+      document.getElementById('successMessage').textContent =
+        `Slot #${slotId} (${s.start_time}–${s.end_time}) on ${state.searchDay} is confirmed. See you there!`;
+      goToStep(3);
+      toast('Slot booked successfully! 🎉');
+    } else {
+      const data = await res.json().catch(()=>({}));
+      errEl.textContent = data.error || 'Slot is no longer available. Please pick another.';
+    }
+  } catch(e) {
+    errEl.textContent = 'Connection error. Make sure the Java backend is running.';
+  }
+
+  showLoading(false);
+}
+
+function resetBooking() {
+  availableSlots = [];
+  state.selectedSlot = null;
+  document.getElementById('searchTeacherId').value = '';
+  document.getElementById('searchDay').value = '';
+  document.getElementById('slotsResult').classList.add('hidden');
+  document.getElementById('searchError').textContent = '';
+  document.getElementById('confirmError').textContent = '';
+
+  for (let i = 1; i <= 3; i++) {
+    const ind   = document.getElementById('step'+i+'Indicator');
+    const panel = document.getElementById('stepPanel'+i);
+    ind.classList.remove('active','done');
+    panel.classList.remove('active');
+  }
+  document.getElementById('step1Indicator').classList.add('active');
+  document.getElementById('stepPanel1').classList.add('active');
+}
+
+// ══════════════════════════════════════════════════
+// DASHBOARD LOGIN → redirect to StudentDashboard
+// ══════════════════════════════════════════════════
+async function handleDashboardLogin() {
+  const errEl = document.getElementById('dashLoginError');
+  errEl.textContent = '';
+
+  const id   = document.getElementById('dashStudentId').value.trim();
+  const pass = document.getElementById('dashPassword').value.trim();
+
+  if (!id)   { errEl.textContent = 'Please enter your Student ID.';  return; }
+  if (!pass) { errEl.textContent = 'Please enter your password.'; return; }
+
+  showLoading(true, 'Verifying credentials…');
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/login?studentId=${id}&password=${encodeURIComponent(pass)}`
+    );
+
+    if (!res.ok) {
+      errEl.textContent = 'Invalid Student ID or Password.';
+      showLoading(false);
+      return;
+    }
+
+    // Credentials valid — open the Student Dashboard
+    // The DashboardServer serves StudentDashboard.html on port 8080
+    showLoading(false);
+    // Pass credentials via query so dashboard auto-logs in
+    window.location.href =
+      `${API_BASE}/dashboard?studentId=${encodeURIComponent(id)}&password=${encodeURIComponent(pass)}`;
+
+  } catch(e) {
+    errEl.textContent = 'Connection error. Make sure the Java backend is running on port 8080.';
+    showLoading(false);
+  }
+}
+
+// Enter key support across login forms
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const visible = id => !document.getElementById(id).classList.contains('hidden');
+  if (visible('teacherLoginScreen'))        handleTeacherLogin();
+  else if (visible('studentBookingLoginScreen')) handleBookingLogin();
+  else if (visible('studentDashLoginScreen'))    handleDashboardLogin();
+});
+</script>
+</body>
+</html>
