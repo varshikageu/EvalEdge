@@ -15,13 +15,18 @@ public class DashboardServer {
     public static void start() throws Exception {
 
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
-
+System.out.println("teacher-slots route active");
         // Serve index.html at root
         server.createContext("/",            DashboardServer::serveIndex);
         // Serve StudentDashboard.html at /dashboard
         server.createContext("/dashboard",   DashboardServer::serveDashboard);
-
+server.createContext("/teacher-dashboard", DashboardServer::serveTeacherDashboard);
         // New endpoints
+        
+        server.createContext("/student-bookings", DashboardServer::handleStudentBookings);
+        server.createContext("/update-booking-feedback", DashboardServer::handleUpdateBookingFeedback);
+        server.createContext("/teacher-slots", DashboardServer::handleTeacherSlots);
+        server.createContext("/teacher-bookings", DashboardServer::handleTeacherBookings);
         server.createContext("/add-teacher", DashboardServer::handleAddTeacher);
         server.createContext("/add-student", DashboardServer::handleAddStudent);
         server.createContext("/add-slots",   DashboardServer::handleAddSlots);
@@ -72,26 +77,51 @@ if (!path.equals("/") && !path.equals("/index.html")) {
 
     // ── Serve StudentDashboard.html at /dashboard ─────────────────────────────
     private static void serveDashboard(HttpExchange ex) throws IOException {
-        if (!ex.getRequestMethod().equals("GET")) { ex.sendResponseHeaders(405, -1); return; }
-
-        File htmlFile = new File("StudentDashboard.html");
-        if (!htmlFile.exists()) htmlFile = new File("../StudentDashboard.html");
-
-        if (!htmlFile.exists()) {
-            String msg = "StudentDashboard.html not found in: " + new File(".").getAbsolutePath();
-            ex.sendResponseHeaders(404, msg.length());
-            ex.getResponseBody().write(msg.getBytes());
-            ex.getResponseBody().close();
-            return;
-        }
-
-        byte[] bytes = Files.readAllBytes(htmlFile.toPath());
-        ex.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
-        ex.sendResponseHeaders(200, bytes.length);
-        ex.getResponseBody().write(bytes);
-        ex.getResponseBody().close();
+    if (!ex.getRequestMethod().equals("GET")) { 
+        ex.sendResponseHeaders(405, -1); 
+        return; 
     }
 
+    File htmlFile = new File("StudentDashboard.html");
+    if (!htmlFile.exists()) htmlFile = new File("../StudentDashboard.html");
+
+    if (!htmlFile.exists()) {
+        String msg = "StudentDashboard.html not found in: " + new File(".").getAbsolutePath();
+        ex.sendResponseHeaders(404, msg.length());
+        ex.getResponseBody().write(msg.getBytes());
+        ex.getResponseBody().close();
+        return;
+    }
+
+    byte[] bytes = Files.readAllBytes(htmlFile.toPath());
+    ex.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+    ex.sendResponseHeaders(200, bytes.length);
+    ex.getResponseBody().write(bytes);
+    ex.getResponseBody().close();
+}
+private static void serveTeacherDashboard(HttpExchange ex) throws IOException {
+    if (!ex.getRequestMethod().equals("GET")) { 
+        ex.sendResponseHeaders(405, -1); 
+        return; 
+    }
+
+    File htmlFile = new File("TeacherDashboard.html");
+    if (!htmlFile.exists()) htmlFile = new File("../TeacherDashboard.html");
+
+    if (!htmlFile.exists()) {
+        String msg = "TeacherDashboard.html not found in: " + new File(".").getAbsolutePath();
+        ex.sendResponseHeaders(404, msg.length());
+        ex.getResponseBody().write(msg.getBytes());
+        ex.getResponseBody().close();
+        return;
+    }
+
+    byte[] bytes = Files.readAllBytes(htmlFile.toPath());
+    ex.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+    ex.sendResponseHeaders(200, bytes.length);
+    ex.getResponseBody().write(bytes);
+    ex.getResponseBody().close();
+}
     // ── POST /login ───────────────────────────────────────────────────────────
     private static void handleLogin(HttpExchange ex) throws IOException {
         setCORS(ex);
@@ -187,10 +217,11 @@ if (!path.equals("/") && !path.equals("/index.html")) {
             Map<String, String> params = parseQuery(body);
             int teacherId = Integer.parseInt(params.getOrDefault("teacherId", "0"));
             String day    = params.getOrDefault("day",   "");
+           String date = params.getOrDefault("date", "");
             String start  = params.getOrDefault("start", "");
             String end    = params.getOrDefault("end",   "");
             TeacherService ts = new TeacherService();
-            ts.addSlots(teacherId, day, start, end);
+            ts.addSlots(teacherId, day, date, start, end);
             sendJSON(ex, 200, "{\"status\":\"ok\"}");
         } catch (Exception e) {
             sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
@@ -225,8 +256,7 @@ if (!path.equals("/") && !path.equals("/index.html")) {
             String day    = params.getOrDefault("day", "");
 
             Connection con = DBConnection.getConnection();
-            String sql = "SELECT slot_id, start_time, end_time FROM slots " +
-                         "WHERE teacher_id=? AND day=? AND is_booked=FALSE";
+           String sql = "SELECT slot_id, day, slot_date, start_time, end_time FROM slots WHERE teacher_id=? AND day=? AND is_booked=FALSE";
             PreparedStatement ps = con.prepareStatement(sql);
             ps.setInt(1, teacherId);
             ps.setString(2, day);
@@ -237,6 +267,8 @@ if (!path.equals("/") && !path.equals("/index.html")) {
             while (rs.next()) {
                 if (!first) sb.append(",");
                 sb.append("{\"slot_id\":").append(rs.getInt("slot_id"))
+             .append(",\"day\":\"").append(rs.getString("day")).append("\"")
+             .append(",\"slot_date\":\"").append(rs.getString("slot_date")).append("\"")
                   .append(",\"start_time\":\"").append(rs.getTime("start_time")).append("\"")
                   .append(",\"end_time\":\"").append(rs.getTime("end_time")).append("\"}");
                 first = false;
@@ -249,7 +281,186 @@ if (!path.equals("/") && !path.equals("/index.html")) {
             sendJSON(ex, 500, "{\"error\":\"" + escJson(e.getMessage()) + "\"}");
         }
     }
+private static void handleTeacherBookings(HttpExchange ex) throws IOException {
+    setCORS(ex);
+    if (ex.getRequestMethod().equals("OPTIONS")) { 
+        ex.sendResponseHeaders(200, -1); 
+        return; 
+    }
 
+    try {
+        String query = ex.getRequestURI().getQuery();
+        Map<String, String> params = parseQuery(query != null ? query : "");
+
+        int teacherId = Integer.parseInt(params.getOrDefault("teacherId", "0"));
+
+        Connection con = DBConnection.getConnection();
+
+       String sql =
+"SELECT b.booking_id, s.slot_id, s.day, s.start_time, s.end_time, " +
+"st.name AS student_name, b.remarks, b.feedback, b.attendance " +
+"FROM bookings b " +
+"JOIN slots s ON b.slot_id = s.slot_id " +
+"JOIN students st ON b.student_id = st.student_id " +
+"WHERE s.teacher_id = ?";
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setInt(1, teacherId);
+
+        ResultSet rs = ps.executeQuery();
+
+        StringBuilder sb = new StringBuilder("{\"bookings\":[");
+
+        boolean first = true;
+        while (rs.next()) {
+            if (!first) sb.append(",");
+
+            sb.append("{")
+              .append("\"booking_id\":").append(rs.getInt("booking_id")).append(",")
+              .append("\"slot_id\":").append(rs.getInt("slot_id")).append(",")
+              .append("\"day\":\"").append(rs.getString("day")).append("\",")
+              .append("\"start_time\":\"").append(rs.getTime("start_time")).append("\",")
+              .append("\"end_time\":\"").append(rs.getTime("end_time")).append("\",")
+              .append("\"student_name\":\"").append(rs.getString("student_name")).append("\",")
+.append("\"remarks\":\"").append(escJson(rs.getString("remarks"))).append("\",")
+.append("\"feedback\":\"").append(escJson(rs.getString("feedback"))).append("\",")
+.append("\"attendance\":").append(rs.getBoolean("attendance"))
+              .append("}");
+
+            first = false;
+        }
+
+        sb.append("]}");
+
+        con.close();
+
+        sendJSON(ex, 200, sb.toString());
+
+    } catch (Exception e) {
+        sendJSON(ex, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+    }
+}private static void handleTeacherSlots(HttpExchange ex) throws IOException {
+    setCORS(ex);
+    if (ex.getRequestMethod().equals("OPTIONS")) {
+        ex.sendResponseHeaders(200, -1);
+        return;
+    }
+
+    try {
+        String query = ex.getRequestURI().getQuery();
+        Map<String, String> params = parseQuery(query != null ? query : "");
+
+        int teacherId = Integer.parseInt(params.getOrDefault("teacherId", "0"));
+
+        Connection con = DBConnection.getConnection();
+String sql = "SELECT slot_id, day, slot_date, start_time, end_time, is_booked " +
+             "FROM slots WHERE teacher_id=? ORDER BY slot_date, start_time";
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setInt(1, teacherId);
+
+        ResultSet rs = ps.executeQuery();
+
+        StringBuilder sb = new StringBuilder("{\"slots\":[");
+
+        boolean first = true;
+        while (rs.next()) {
+            if (!first) sb.append(",");
+
+            sb.append("{")
+              .append("\"slot_id\":").append(rs.getInt("slot_id")).append(",")
+              .append("\"day\":\"").append(rs.getString("day")).append("\",")
+              .append("\"slot_date\":\"").append(rs.getDate("slot_date")).append("\",")
+              .append("\"start_time\":\"").append(rs.getTime("start_time")).append("\",")
+              .append("\"end_time\":\"").append(rs.getTime("end_time")).append("\",")
+              .append("\"is_booked\":").append(rs.getBoolean("is_booked"))
+              .append("}");
+
+            first = false;
+        }
+
+        sb.append("]}");
+
+        con.close();
+
+        sendJSON(ex, 200, sb.toString());
+
+    } catch (Exception e) {
+        sendJSON(ex, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+    }
+}
+private static void handleUpdateBookingFeedback(HttpExchange ex) throws IOException {
+    try {
+        String body = new String(ex.getRequestBody().readAllBytes());
+        Map<String, String> params = parseQuery(body);
+
+        int bookingId = Integer.parseInt(params.get("bookingId"));
+boolean attendance = Boolean.parseBoolean(params.get("attendance"));        String remarks = params.get("remarks");
+        String feedback = params.get("feedback");
+
+        Connection con = DBConnection.getConnection();
+
+String sql = "UPDATE bookings SET attendance=?, remarks=?, feedback=? WHERE booking_id=?";        PreparedStatement ps = con.prepareStatement(sql);
+
+        ps.setBoolean(1, attendance);
+        ps.setString(2, remarks);
+        ps.setString(3, feedback);
+        ps.setInt(4, bookingId);
+
+        ps.executeUpdate();
+
+        sendJSON(ex, 200, "{\"status\":\"updated\"}");
+
+    } catch (Exception e) {
+        sendJSON(ex, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+    }
+}
+private static void handleStudentBookings(HttpExchange ex) throws IOException {
+    try {
+        String query = ex.getRequestURI().getQuery();
+        Map<String, String> params = parseQuery(query);
+
+        int studentId = Integer.parseInt(params.get("studentId"));
+
+        Connection con = DBConnection.getConnection();
+
+        String sql =
+            "SELECT b.booking_id, s.day, s.slot_date, s.start_time, s.end_time, " +
+            "b.attendance, b.remarks, b.feedback " +
+            "FROM bookings b " +
+            "JOIN slots s ON b.slot_id = s.slot_id " +
+            "WHERE b.student_id=?";
+
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setInt(1, studentId);
+
+        ResultSet rs = ps.executeQuery();
+
+        StringBuilder sb = new StringBuilder("{\"bookings\":[");
+        boolean first = true;
+
+        while (rs.next()) {
+            if (!first) sb.append(",");
+
+            sb.append("{")
+              .append("\"booking_id\":").append(rs.getInt("booking_id")).append(",")
+              .append("\"date\":\"").append(rs.getString("slot_date")).append("\",")
+              .append("\"day\":\"").append(rs.getString("day")).append("\",")
+              .append("\"time\":\"").append(rs.getTime("start_time")).append(" - ").append(rs.getTime("end_time")).append("\",")
+              .append("\"attended\":").append(rs.getBoolean("attendance")).append(",")
+              .append("\"remarks\":\"").append(escJson(rs.getString("remarks"))).append("\",")
+              .append("\"feedback\":\"").append(escJson(rs.getString("feedback"))).append("\"")
+              .append("}");
+
+            first = false;
+        }
+
+        sb.append("]}");
+
+        sendJSON(ex, 200, sb.toString());
+
+    } catch (Exception e) {
+        sendJSON(ex, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+    }
+}
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static void setCORS(HttpExchange ex) {

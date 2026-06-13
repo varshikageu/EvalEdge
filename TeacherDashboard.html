@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EvalEdge — Teacher Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #080c14;
+  --surface: #0e1422;
+  --card:    #131929;
+  --border:  #1e2d47;
+  --accent:  #2563eb;
+  --accent2: #0ea5e9;
+  --gold:    #f59e0b;
+  --success: #10b981;
+  --danger:  #ef4444;
+  --text:    #e2e8f0;
+  --muted:   #64748b;
+  --radius:  14px;
+  --shadow:  0 8px 32px rgba(0,0,0,0.45);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.hidden { display: none !important; }
+
+/* ── Background ── */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(37,99,235,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37,99,235,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+.bg-glow {
+  position: fixed; z-index: 0; pointer-events: none;
+  border-radius: 50%; filter: blur(120px); opacity: 0.15;
+}
+.glow1 { width:600px;height:600px;background:#2563eb;top:-200px;left:-150px; }
+.glow2 { width:500px;height:500px;background:#f59e0b;bottom:-100px;right:-100px; }
+
+/* ── Loading Overlay ── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(8,12,20,0.85);
+  backdrop-filter: blur(8px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-text { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--muted); }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 28px; right: 28px; z-index: 300;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 20px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; box-shadow: var(--shadow);
+  animation: slideIn 0.3s ease;
+  max-width: 320px;
+}
+.toast.success { border-color: rgba(16,185,129,0.4); }
+.toast.error   { border-color: rgba(239,68,68,0.4); }
+
+/* ── Login Screen ── */
+#loginScreen {
+  position: relative; z-index: 10;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeUp 0.7s ease both;
+}
+.login-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 56px 48px;
+  width: 420px;
+  box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,0.03);
+}
+.login-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px; font-weight: 800;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+.login-sub { font-size: 13px; color: var(--muted); margin-bottom: 36px; }
+
+.field-label {
+  font-size: 11px; font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: 8px; display: block;
+}
+.field-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px; color: var(--text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  margin-bottom: 18px;
+}
+.field-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
+}
+.field-input::placeholder { color: var(--muted); }
+.field-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+textarea.field-input {
+  resize: vertical;
+  min-height: 90px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+select.field-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px; cursor: pointer;
+}
+select.field-input option { background: var(--surface); }
+
+.btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #fff; border: none; border-radius: 10px;
+  padding: 15px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.04em; cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.form-error { color: var(--danger); font-size: 13px; margin-top: 12px; text-align: center; min-height: 18px; }
+
+/* ── Dashboard Layout ── */
+#dashboard {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column;
+  min-height: 100vh;
+  animation: fadeUp 0.5s ease both;
+}
+
+/* ── Topbar ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 36px; height: 68px;
+  background: rgba(13,20,36,0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.topbar-logo {
+  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.topbar-role {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: #fbbf24;
+}
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: #fff;
+}
+.topbar-name { font-size: 14px; font-weight: 500; }
+.btn-logout {
+  background: rgba(239,68,68,0.12); color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.25); border-radius: 8px;
+  padding: 7px 16px; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background 0.2s;
+}
+.btn-logout:hover { background: rgba(239,68,68,0.22); }
+
+/* ── Sidebar + Main ── */
+.layout {
+  display: flex; flex: 1;
+}
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: rgba(13,20,36,0.6);
+  border-right: 1px solid var(--border);
+  padding: 28px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+  position: sticky; top: 68px;
+  height: calc(100vh - 68px);
+  overflow-y: auto;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 10px;
+  font-size: 14px; font-weight: 500;
+  color: var(--muted); cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active {
+  background: rgba(245,158,11,0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245,158,11,0.2);
+}
+.nav-icon { font-size: 17px; }
+.nav-divider {
+  height: 1px; background: var(--border);
+  margin: 10px 0;
+}
+.nav-section-label {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); padding: 6px 14px 4px;
+}
+
+.main-content {
+  flex: 1; padding: 36px;
+  overflow-y: auto;
+}
+
+/* ── Page titles ── */
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px; font-weight: 800;
+  margin-bottom: 6px;
+}
+.page-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+
+.section-label {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 16px;
+}
+
+/* ── Stats Row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px; margin-bottom: 32px;
+}
+.stat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px 22px;
+  position: relative; overflow: hidden;
+}
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.stat-card.s-gold::before   { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
+.stat-card.s-blue::before   { background: linear-gradient(90deg,#2563eb,#0ea5e9); }
+.stat-card.s-green::before  { background: linear-gradient(90deg,#10b981,#34d399); }
+.stat-card.s-purple::before { background: linear-gradient(90deg,#7c3aed,#a78bfa); }
+
+.stat-icon { font-size: 22px; margin-bottom: 10px; }
+.stat-val {
+  font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800;
+  margin-bottom: 2px;
+}
+.stat-lbl { font-size: 12px; color: var(--muted); }
+
+/* ── Bookings Table ── */
+.bookings-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  margin-bottom: 32px;
+}
+.bookings-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 28px; border-bottom: 1px solid var(--border);
+  flex-wrap: wrap; gap: 12px;
+}
+.bookings-title {
+  font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+}
+.filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-select {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 32px 8px 12px;
+  font-size: 13px; color: var(--text);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer; outline: none;
+  transition: border-color 0.2s;
+}
+.filter-select:focus { border-color: var(--gold); }
+.filter-select option { background: var(--surface); }
+
+.search-input {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px;
+  font-size: 13px; color: var(--text);
+  outline: none; width: 200px;
+  transition: border-color 0.2s;
+}
+.search-input:focus { border-color: var(--gold); }
+.search-input::placeholder { color: var(--muted); }
+
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%; border-collapse: collapse;
+}
+thead tr {
+  border-bottom: 1px solid var(--border);
+}
+th {
+  padding: 12px 20px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); text-align: left;
+  white-space: nowrap;
+}
+td {
+  padding: 16px 20px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(30,45,71,0.5);
+  vertical-align: middle;
+}
+tbody tr { transition: background 0.15s; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+tbody tr:last-child td { border-bottom: none; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.badge-booked  { background: rgba(37,99,235,0.15);  color: #60a5fa;  border: 1px solid rgba(37,99,235,0.3); }
+.badge-done    { background: rgba(16,185,129,0.12); color: var(--success); border: 1px solid rgba(16,185,129,0.3); }
+.badge-pending { background: rgba(245,158,11,0.12); color: var(--gold);    border: 1px solid rgba(245,158,11,0.3); }
+
+.student-cell { display: flex; align-items: center; gap: 10px; }
+.s-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.s-name { font-weight: 500; }
+.s-id   { font-size: 12px; color: var(--muted); }
+
+.btn-remark {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #fbbf24; border-radius: 8px;
+  padding: 7px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+  white-space: nowrap;
+}
+.btn-remark:hover { background: rgba(245,158,11,0.22); }
+.btn-remark.done {
+  background: rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.25);
+  color: var(--success);
+}
+
+.empty-state {
+  text-align: center; padding: 56px 24px;
+  color: var(--muted);
+}
+.empty-state-icon { font-size: 40px; margin-bottom: 14px; }
+.empty-state p { font-size: 14px; }
+
+.table-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px; border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--muted);
+  flex-wrap: wrap; gap: 10px;
+}
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 150;
+  background: rgba(8,12,20,0.82);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%; max-width: 520px;
+  box-shadow: var(--shadow);
+  animation: fadeUp 0.3s ease both;
+  position: relative;
+}
+.modal-close {
+  position: absolute; top: 16px; right: 18px;
+  background: none; border: none; color: var(--muted);
+  font-size: 22px; cursor: pointer; transition: color 0.2s;
+  line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+.modal-title {
+  font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800;
+  margin-bottom: 4px;
+}
+.modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+.booking-info-strip {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.info-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 14px;
+  font-size: 13px;
+}
+.info-chip span { color: var(--muted); font-size: 12px; }
+
+.grade-row {
+  display: flex; gap: 10px; margin-bottom: 18px;
+}
+.grade-option {
+  flex: 1; background: var(--surface);
+  border: 2px solid var(--border); border-radius: 10px;
+  padding: 12px 8px; text-align: center; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.grade-option:hover { border-color: var(--muted); }
+.grade-option.selected {
+  border-color: var(--gold);
+  background: rgba(245,158,11,0.08);
+}
+.grade-letter {
+  font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800;
+  margin-bottom: 2px;
+}
+.grade-range { font-size: 10px; color: var(--muted); }
+.g-a  { color: #34d399; }
+.g-b  { color: #60a5fa; }
+.g-c  { color: #fbbf24; }
+.g-d  { color: #f97316; }
+.g-f  { color: #ef4444; }
+
+.char-count { font-size: 11px; color: var(--muted); text-align: right; margin-top: -12px; margin-bottom: 18px; }
+
+.modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+.btn-save {
+  flex: 1;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #fff; border: none; border-radius: 10px;
+  padding: 14px; font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.btn-save:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-cancel {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px; padding: 14px 22px;
+  font-size: 14px; cursor: pointer; transition: background 0.2s;
+}
+.btn-cancel:hover { background: var(--border); }
+
+/* ── Timeline view ── */
+.timeline {
+  display: flex; flex-direction: column; gap: 0;
+  position: relative;
+}
+.timeline::before {
+  content: ''; position: absolute;
+  left: 19px; top: 20px; bottom: 20px;
+  width: 2px; background: var(--border);
+}
+.tl-item {
+  display: flex; align-items: flex-start; gap: 18px;
+  padding: 16px 0;
+  position: relative;
+}
+.tl-dot {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--card); border: 2px solid var(--border);
+  flex-shrink: 0; margin-top: 2px; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px;
+}
+.tl-dot.booked  { border-color: var(--accent); background: rgba(37,99,235,0.15); }
+.tl-dot.done    { border-color: var(--success); background: rgba(16,185,129,0.15); }
+.tl-body { flex: 1; }
+.tl-time { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.tl-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.tl-detail { font-size: 13px; color: var(--muted); }
+
+/* ── Evaluation Panel ── */
+.eval-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  margin-bottom: 24px;
+}
+.eval-card-header {
+  padding: 18px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.eval-card-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; }
+.eval-card-body { padding: 24px; }
+.eval-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .eval-grid { grid-template-columns: 1fr; } }
+
+.marks-input-wrap {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px;
+}
+.marks-input-wrap input[type="number"] {
+  width: 90px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+  font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;
+  color: var(--text); outline: none;
+  transition: border-color 0.2s;
+  text-align: center;
+}
+.marks-input-wrap input[type="number"]:focus { border-color: var(--gold); }
+.marks-sep { font-size: 14px; color: var(--muted); }
+.marks-max { font-family: 'Syne', sans-serif; font-size: 16px; color: var(--muted); }
+
+/* ── View remark panel ── */
+.remark-bubble {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  font-size: 14px; line-height: 1.6; color: var(--text);
+  margin-bottom: 8px;
+}
+.remark-bubble.empty { color: var(--muted); font-style: italic; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main-content { padding: 20px; }
+  .topbar { padding: 0 20px; }
+}
+
+/* ── Keyframes ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow glow1"></div>
+<div class="bg-glow glow2"></div>
+
+<!-- Loading -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading…</div>
+</div>
+
+<!-- ═══════════════════════════════════
+     LOGIN
+═══════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">EvalEdge</div>
+    <div class="login-sub">Teacher Dashboard — sign in to continue</div>
+
+    <label class="field-label">Teacher ID</label>
+    <input type="number" class="field-input" id="loginTeacherId" placeholder="Enter your Teacher ID" />
+
+    <button class="btn-primary" onclick="handleLogin()">Enter Dashboard →</button>
+    <div class="form-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     DASHBOARD
+═══════════════════════════════════ -->
+<div id="dashboard" class="hidden">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">EvalEdge</div>
+      <div class="topbar-role">👨‍🏫 Teacher</div>
+    </div>
+    <div class="topbar-right">
+      <div class="avatar" id="topAvatar">T</div>
+      <span class="topbar-name" id="topName">Teacher</span>
+      <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="nav-section-label">Menu</div>
+      <div class="nav-item" id="nav-slots" onclick="showPage('slots')">
+  <span class="nav-icon">➕</span> Add Slots
+</div>
+      <div class="nav-item active" id="nav-bookings" onclick="showPage('bookings')">
+        <span class="nav-icon">📋</span> Bookings
+      </div>
+      <div class="nav-item" id="nav-evaluate" onclick="showPage('evaluate')">
+        <span class="nav-icon">✏️</span> Evaluate
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-section-label">Quick</div>
+      <div class="nav-item" id="nav-timeline" onclick="showPage('timeline')">
+        <span class="nav-icon">🕐</span> Timeline
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="main-content">
+
+      <!-- ── PAGE: BOOKINGS ── -->
+      <div id="page-bookings">
+        <div class="page-title">Booked Slots</div>
+        <div class="page-sub">Students who have booked your evaluation slots</div>
+
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+          <div class="stat-card s-gold">
+            <div class="stat-icon">📅</div>
+            <div class="stat-val" id="statTotal">—</div>
+            <div class="stat-lbl">Total Bookings</div>
+          </div>
+          <div class="stat-card s-blue">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-val" id="statPending">—</div>
+            <div class="stat-lbl">Pending Remarks</div>
+          </div>
+          <div class="stat-card s-green">
+            <div class="stat-icon">✅</div>
+            <div class="stat-val" id="statDone">—</div>
+            <div class="stat-lbl">Remarks Done</div>
+          </div>
+          <div class="stat-card s-purple">
+            <div class="stat-icon">👥</div>
+            <div class="stat-val" id="statStudents">—</div>
+            <div class="stat-lbl">Unique Students</div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="bookings-card">
+          <div class="bookings-header">
+            <div class="bookings-title">All Bookings</div>
+            <div class="filter-row">
+              <input class="search-input" type="text" id="searchInput" placeholder="🔍 Search student…" oninput="applyFilters()" />
+              <select class="filter-select" id="dayFilter" onchange="applyFilters()">
+                <option value="">All Days</option>
+                <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+                <option>Thursday</option><option>Friday</option><option>Saturday</option>
+              </select>
+              <select class="filter-select" id="remarkFilter" onchange="applyFilters()">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="done">Remarked</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Slot ID</th>
+                  <th>Day</th>
+                  <th>Time</th>
+                  <th>Booked At</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="bookingsBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty-state hidden">
+              <div class="empty-state-icon">📭</div>
+              <p>No bookings found matching your filters.</p>
+            </div>
+          </div>
+
+          <div class="table-footer">
+            <span id="tableFooter">Showing 0 bookings</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: EVALUATE ── -->
+      <div id="page-evaluate" class="hidden">
+        <div class="page-title">Evaluate Student</div>
+        <div class="page-sub">Select a booking to add or update marks, remarks and feedback</div>
+
+        <div class="bookings-card" style="margin-bottom:28px;">
+          <div class="bookings-header">
+            <div class="bookings-title">Select a Booking</div>
+            <input class="search-input" type="text" id="evalSearch" placeholder="🔍 Search student…" oninput="renderEvalList()" />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th><th>Day</th><th>Time</th><th>Remarks</th><th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="evalBody"></tbody>
+            </table>
+            <div id="evalEmpty" class="empty-state hidden">
+              <div class="empty-state-icon">📋</div>
+              <p>No bookings yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PAGE: TIMELINE ── -->
+      <div id="page-timeline" class="hidden">
+        <div class="page-title">Booking Timeline</div>
+        <div class="page-sub">Chronological view of all student slot bookings</div>
+
+        <div class="bookings-card">
+          <div class="bookings-header">
+            <div class="bookings-title">Activity</div>
+            <select class="filter-select" id="tlDayFilter" onchange="renderTimeline()">
+              <option value="">All Days</option>
+              <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+              <option>Thursday</option><option>Friday</option><option>Saturday</option>
+            </select>
+          </div>
+          <div style="padding:24px 28px;">
+            <div class="timeline" id="timelineList"></div>
+            <div id="tlEmpty" class="empty-state hidden">
+              <div class="empty-state-icon">🕐</div>
+              <p>No bookings recorded yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+<!-- ── PAGE: SLOTS ── -->
+<div id="page-slots" class="hidden">
+  <div class="page-title">Create Slots</div>
+  <div class="page-sub">Add available time slots for students</div>
+
+  <div class="bookings-card" style="padding:20px;">
+
+    <label>Day</label>
+    <select id="slotDay" class="field-input">
+      <option>Monday</option>
+      <option>Tuesday</option>
+      <option>Wednesday</option>
+      <option>Thursday</option>
+      <option>Friday</option>
+      <option>Saturday</option>
+    </select>
+<label>Date</label>
+<input type="date" id="slotDate" class="field-input"/>
+    <label>Start Time</label>
+    <input type="time" id="slotStart" class="field-input"/>
+
+    <label>End Time</label>
+    <input type="time" id="slotEnd" class="field-input"/>
+
+    <button class="btn-primary" onclick="addSlots()">
+      Add Slots
+    </button>
+
+  </div>
+</div>
+<div style="margin-top:20px;">
+  <table style="width:100%; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th>Day</th>
+        <th>Date</th> 
+        <th>Time</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="slotsTable"></tbody>
+  </table>
+</div>
+    </div><!-- /main-content -->
+  </div><!-- /layout -->
+</div><!-- /dashboard -->
+
+<!-- ═══════════════════════════════════
+     REMARK MODAL
+═══════════════════════════════════ -->
+<div class="modal-overlay hidden" id="remarkModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-title" id="modalTitle">Add Remarks</div>
+    <div class="modal-sub" id="modalSub">Slot booking details</div>
+
+    <!-- Booking info chips -->
+    <div class="booking-info-strip" id="modalInfoStrip"></div>
+
+    <!-- Quick grade -->
+    <div class="section-label" style="margin-bottom:10px;">Quick Grade</div>
+    <div class="grade-row" id="gradeRow">
+      <div class="grade-option" data-grade="A" onclick="selectGrade('A')">
+        <div class="grade-letter g-a">A</div>
+        <div class="grade-range">90–100</div>
+      </div>
+      <div class="grade-option" data-grade="B" onclick="selectGrade('B')">
+        <div class="grade-letter g-b">B</div>
+        <div class="grade-range">75–89</div>
+      </div>
+      <div class="grade-option" data-grade="C" onclick="selectGrade('C')">
+        <div class="grade-letter g-c">C</div>
+        <div class="grade-range">60–74</div>
+      </div>
+      <div class="grade-option" data-grade="D" onclick="selectGrade('D')">
+        <div class="grade-letter g-d">D</div>
+        <div class="grade-range">40–59</div>
+      </div>
+      <div class="grade-option" data-grade="F" onclick="selectGrade('F')">
+        <div class="grade-letter g-f">F</div>
+        <div class="grade-range">0–39</div>
+      </div>
+    </div>
+
+    <label class="field-label">Remarks <span style="color:var(--muted);font-weight:400;letter-spacing:0">(brief summary)</span></label>
+    <textarea class="field-input" id="modalRemarks" placeholder="e.g. Good understanding of the problem. Needs improvement in implementation." maxlength="300" oninput="updateCharCount('modalRemarks','remarksCount',300)"></textarea>
+    <div class="char-count"><span id="remarksCount">0</span>/300</div>
+
+    <label class="field-label">Detailed Feedback</label>
+    <textarea class="field-input" id="modalFeedback" placeholder="Provide specific suggestions and observations for the student…" maxlength="600" oninput="updateCharCount('modalFeedback','feedbackCount',600)"></textarea>
+    <div class="char-count"><span id="feedbackCount">0</span>/600</div>
+<label class="field-label">Attendance</label>
+<select id="modalAttendance" class="field-input">
+  <option value="false">Absent</option>
+  <option value="true">Present</option>
+</select>
+    <div class="modal-actions">
+      <button class="btn-save" onclick="saveRemark()">💾 Save Remark</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+    <div class="form-error" id="modalError"></div>
+  </div>
+</div>
+
+<script>
+    async function addSlots() {
+  const day = document.getElementById("slotDay").value;
+  const start = document.getElementById("slotStart").value;
+  const end = document.getElementById("slotEnd").value;
+const date = document.getElementById("slotDate").value;
+  if (!start || !end || !date) {
+  alert("Please select date and time");
+  return;
+}
+
+  try {
+    await fetch(`${API_BASE}/add-slots`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+     body: `teacherId=${teacherId}&day=${day}&date=${date}&start=${start}&end=${end}`
+    });
+
+    alert("Slots added successfully!");
+     loadTeacherSlots();
+  } catch (err) {
+    console.error(err);
+    alert("Error adding slots");
+  }
+  
+}
+// ─── Config ──────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8080';
+// Auto login from URL (integration with index.html)
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let teacherId = null;
+let teacherName = '';
+// Master list of bookings — fetched from API and augmented with local remarks
+let bookings = [];
+window.addEventListener('load', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('teacherId');
+  const name = params.get('name');
+
+  if (id) {
+    teacherId = parseInt(id);
+    teacherName = name || 'Teacher #' + id;
+
+    showLoading(true, 'Loading your dashboard…');
+
+    await loadBookings();
+
+    document.getElementById('topAvatar').textContent = 'T';
+    document.getElementById('topName').textContent = teacherName;
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+
+    showLoading(false);
+    showPage('bookings');
+  }
+});
+// Local remark store: { bookingKey: { remarks, feedback, grade, savedAt } }
+let remarkStore = {};
+let modalBookingKey = null;
+let selectedGrade = '';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function showLoading(v, msg = 'Loading…') {
+  document.getElementById('loadingText').textContent = msg;
+  document.getElementById('loadingOverlay').classList.toggle('hidden', !v);
+}
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+function initials(name) {
+  if (!name) return '?';
+  return name.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+function fmtTime(t) {
+  if (!t) return '—';
+  // t may be "HH:MM:SS" or "HH:MM"
+  const parts = t.split(':');
+  let h = parseInt(parts[0]), m = parseInt(parts[1]);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function updateCharCount(textareaId, countId, max) {
+  const len = document.getElementById(textareaId).value.length;
+  document.getElementById(countId).textContent = len;
+}
+function bookingKey(b) {
+  return `${b.student_id}_${b.slot_id}`;
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+async function handleLogin() {
+  const idVal = document.getElementById('loginTeacherId').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if (!idVal) { errEl.textContent = 'Please enter your Teacher ID.'; return; }
+
+  teacherId = parseInt(idVal);
+  showLoading(true, 'Loading your dashboard…');
+
+  await loadBookings();
+
+  // Set teacher display (we don't have a teacher name endpoint, so use ID)
+  teacherName = 'Teacher #' + teacherId;
+  document.getElementById('topAvatar').textContent = 'T';
+  document.getElementById('topName').textContent = teacherName;
+
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+
+  showLoading(false);
+  showPage('bookings');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('loginScreen').classList.contains('hidden')) {
+    handleLogin();
+  }
+});
+
+function handleLogout() {
+  teacherId = null; bookings = []; remarkStore = {};
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginTeacherId').value = '';
+  document.getElementById('loginError').textContent = '';
+}
+
+// ─── Load Bookings ────────────────────────────────────────────────────────────
+// The existing backend has GET /slots?teacherId=&day= which returns UNBOOKED slots.
+// We need BOOKED slots. We'll query each day and look for booked=TRUE bookings.
+// Since the backend doesn't expose a /bookings endpoint yet, we'll query /slots
+// for all days and separately use a fallback demo dataset when server is unreachable.
+// If your server exposes a /bookings?teacherId= endpoint, replace the fetch below.
+
+async function loadBookings() {
+  try {
+    const res = await fetch(`${API_BASE}/teacher-bookings?teacherId=${teacherId}`);
+    const data = await res.json();
+
+    bookings = data.bookings || [];
+
+  renderStats();
+renderBookingsTable();
+renderEvalList();
+renderTimeline();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load bookings");
+  }
+}
+
+// ─── Demo bookings (replace with real API when /teacher-bookings is added) ───
+function getDemoBookings(tid) {
+  if (tid !== 1 && tid !== 2 && tid !== 3) {
+    // Any teacher ID shows some demo data
+  }
+  return [
+    { booking_id:1, student_id:101, student_name:'Riya Mehta',   slot_id:5,  day:'Monday',    start_time:'09:00:00', end_time:'09:30:00', booked_at:'2025-04-22 10:14:00' },
+    { booking_id:2, student_id:102, student_name:'Aarav Singh',  slot_id:6,  day:'Monday',    start_time:'09:30:00', end_time:'10:00:00', booked_at:'2025-04-22 11:02:00' },
+    { booking_id:3, student_id:103, student_name:'Priya Kapoor', slot_id:12, day:'Wednesday', start_time:'11:00:00', end_time:'11:30:00', booked_at:'2025-04-23 08:55:00' },
+    { booking_id:4, student_id:104, student_name:'Dev Sharma',   slot_id:17, day:'Thursday',  start_time:'14:00:00', end_time:'14:30:00', booked_at:'2025-04-23 14:30:00' },
+    { booking_id:5, student_id:105, student_name:'Meera Nair',   slot_id:21, day:'Friday',    start_time:'10:00:00', end_time:'10:30:00', booked_at:'2025-04-24 09:10:00' },
+    { booking_id:6, student_id:101, student_name:'Riya Mehta',   slot_id:25, day:'Friday',    start_time:'15:00:00', end_time:'15:30:00', booked_at:'2025-04-24 16:20:00' },
+    { booking_id:7, student_id:106, student_name:'Karan Patel',  slot_id:30, day:'Saturday',  start_time:'10:30:00', end_time:'11:00:00', booked_at:'2025-04-25 07:45:00' },
+  ];
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function showPage(page) {
+ ['bookings','evaluate','timeline','slots'].forEach(p => {
+    document.getElementById('page-' + p).classList.add('hidden');
+    document.getElementById('nav-' + p)?.classList.remove('active');
+  });
+  document.getElementById('page-' + page).classList.remove('hidden');
+  document.getElementById('nav-' + page)?.classList.add('active');
+
+  if (page === 'bookings')  { renderStats(); renderBookingsTable(); }
+  if (page === 'evaluate')  { renderEvalList(); }
+  if (page === 'timeline')  { renderTimeline(); }
+  if (page === 'slots') {
+  loadTeacherSlots();
+}
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const total = bookings.length;
+  const done = bookings.filter(b => remarkStore[bookingKey(b)]?.remarks).length;
+  const pending = total - done;
+  const unique = new Set(bookings.map(b => b.student_id)).size;
+
+  document.getElementById('statTotal').textContent    = total;
+  document.getElementById('statPending').textContent  = pending;
+  document.getElementById('statDone').textContent     = done;
+  document.getElementById('statStudents').textContent = unique;
+}
+
+// ─── Bookings Table ───────────────────────────────────────────────────────────
+function applyFilters() { renderBookingsTable(); }
+
+function renderBookingsTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const dayF   = document.getElementById('dayFilter').value;
+  const remF   = document.getElementById('remarkFilter').value;
+
+  let filtered = bookings.filter(b => {
+    const name = (b.student_name || '').toLowerCase();
+    const id   = String(b.student_id);
+    if (search && !name.includes(search) && !id.includes(search)) return false;
+    if (dayF && b.day !== dayF) return false;
+    const hasRemark = !!remarkStore[bookingKey(b)]?.remarks;
+    if (remF === 'pending' && hasRemark)  return false;
+    if (remF === 'done'    && !hasRemark) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('bookingsBody');
+  const empty = document.getElementById('emptyState');
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    document.getElementById('tableFooter').textContent = 'No bookings found';
+    return;
+  }
+  empty.classList.add('hidden');
+  document.getElementById('tableFooter').textContent = `Showing ${filtered.length} of ${bookings.length} bookings`;
+
+  tbody.innerHTML = filtered.map(b => {
+    const key = bookingKey(b);
+    const rem = remarkStore[key];
+    const hasRemark = b.remarks && b.remarks !== "";
+    const av = initials(b.student_name || 'S' + b.student_id);
+    const bookedAt = b.booked_at ? new Date(b.booked_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—';
+
+    return `<tr>
+      <td>
+        <div class="student-cell">
+          <div class="s-avatar">${av}</div>
+          <div>
+            <div class="s-name">${b.student_name || 'Student'}</div>
+            <div class="s-id">#${b.student_id}</div>
+          </div>
+        </div>
+      </td>
+      <td>#${b.slot_id}</td>
+      <td>${b.day}</td>
+      <td>${fmtTime(b.start_time)} – ${fmtTime(b.end_time)}</td>
+      <td>${bookedAt}</td>
+      <td>
+        <span class="badge ${hasRemark ? 'badge-done' : 'badge-pending'}">
+${b.remarks ? "REMARKED" : "PENDING"}        </span>
+      </td>
+      <td>
+        <button class="btn-remark ${hasRemark ? 'done' : ''}" onclick="openModal(${JSON.stringify(b).replace(/"/g,'&quot;')})">
+          ${hasRemark ? '✏️ Edit' : '💬 Add Remark'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Eval List ────────────────────────────────────────────────────────────────
+function renderEvalList() {
+  const search = document.getElementById('evalSearch').value.toLowerCase();
+  let filtered = bookings.filter(b => {
+    const name = (b.student_name || '').toLowerCase();
+    return !search || name.includes(search) || String(b.student_id).includes(search);
+  });
+
+  const tbody = document.getElementById('evalBody');
+  const empty = document.getElementById('evalEmpty');
+
+  if (!filtered.length) {
+    tbody.innerHTML = ''; empty.classList.remove('hidden'); return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = filtered.map(b => {
+    const key = bookingKey(b);
+    const rem = remarkStore[key];
+    const hasRemark = !!rem?.remarks;
+    const av = initials(b.student_name || 'S');
+
+    return `<tr>
+      <td>
+        <div class="student-cell">
+          <div class="s-avatar">${av}</div>
+          <div>
+            <div class="s-name">${b.student_name || 'Student'}</div>
+            <div class="s-id">#${b.student_id}</div>
+          </div>
+        </div>
+      </td>
+      <td>${b.day}</td>
+      <td>${fmtTime(b.start_time)} – ${fmtTime(b.end_time)}</td>
+      <td>
+        ${hasRemark
+          ? `<div class="remark-bubble" style="margin-bottom:0;font-size:13px;">${rem.remarks.slice(0,80)}${rem.remarks.length>80?'…':''}</div>`
+          : `<span style="color:var(--muted);font-size:13px;">No remark yet</span>`}
+      </td>
+      <td>
+        <button class="btn-remark ${hasRemark ? 'done' : ''}" onclick="openModal(${JSON.stringify(b).replace(/"/g,'&quot;')})">
+          ${hasRemark ? '✏️ Edit' : '💬 Add'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Timeline ─────────────────────────────────────────────────────────────────
+function renderTimeline() {
+  const dayF = document.getElementById('tlDayFilter').value;
+  let filtered = [...bookings]
+    .filter(b => !dayF || b.day === dayF)
+    .sort((a,b) => new Date(b.booked_at||0) - new Date(a.booked_at||0));
+
+  const list = document.getElementById('timelineList');
+  const empty = document.getElementById('tlEmpty');
+
+  if (!filtered.length) {
+    list.innerHTML = ''; empty.classList.remove('hidden'); return;
+  }
+  empty.classList.add('hidden');
+
+  list.innerHTML = filtered.map(b => {
+    const key = bookingKey(b);
+    const hasRemark = !!remarkStore[key]?.remarks;
+    const av = initials(b.student_name || 'S');
+    const dt = b.booked_at ? new Date(b.booked_at).toLocaleString('en-IN', {
+      day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'
+    }) : 'Unknown time';
+
+    return `<div class="tl-item">
+      <div class="tl-dot ${hasRemark ? 'done' : 'booked'}">${hasRemark ? '✓' : '●'}</div>
+      <div class="tl-body">
+        <div class="tl-time">${dt}</div>
+        <div class="tl-title">${b.student_name || 'Student #'+b.student_id} booked Slot #${b.slot_id}</div>
+        <div class="tl-detail">${b.day} · ${fmtTime(b.start_time)} – ${fmtTime(b.end_time)} · ${hasRemark ? '<span style="color:var(--success)">Remarked</span>' : '<span style="color:var(--muted)">Awaiting remark</span>'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function openModal(booking) {
+  const key = bookingKey(booking);
+  modalBookingKey = key;
+  const existing = remarkStore[key];
+
+  document.getElementById('modalTitle').textContent =
+    `${existing?.remarks ? 'Edit Remark' : 'Add Remark'} — ${booking.student_name || 'Student #'+booking.student_id}`;
+  document.getElementById('modalSub').textContent =
+    `Student ID: ${booking.student_id} · Slot #${booking.slot_id}`;
+
+  // Info chips
+  document.getElementById('modalInfoStrip').innerHTML = `
+    <div class="info-chip"><span>📅</span> ${booking.day}</div>
+    <div class="info-chip"><span>🕐</span> ${fmtTime(booking.start_time)} – ${fmtTime(booking.end_time)}</div>
+    <div class="info-chip"><span>🆔</span> Slot #${booking.slot_id}</div>
+  `;
+
+  // Fill existing
+  selectedGrade = existing?.grade || '';
+  document.getElementById('modalRemarks').value  = existing?.remarks  || '';
+  document.getElementById('modalFeedback').value = existing?.feedback || '';
+  document.getElementById('modalError').textContent = '';
+  updateCharCount('modalRemarks','remarksCount',300);
+  updateCharCount('modalFeedback','feedbackCount',600);
+
+  // Highlight grade
+  document.querySelectorAll('.grade-option').forEach(el => {
+    el.classList.toggle('selected', el.dataset.grade === selectedGrade);
+  });
+
+  document.getElementById('remarkModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('remarkModal').classList.add('hidden');
+  modalBookingKey = null;
+  selectedGrade = '';
+}
+
+function selectGrade(g) {
+  selectedGrade = g;
+  document.querySelectorAll('.grade-option').forEach(el => {
+    el.classList.toggle('selected', el.dataset.grade === g);
+  });
+}
+async function loadTeacherSlots() {
+  try {
+    const res = await fetch(`${API_BASE}/teacher-slots?teacherId=${teacherId}`);
+    const data = await res.json();
+
+    const tbody = document.getElementById("slotsTable");
+    tbody.innerHTML = "";
+
+    data.slots.forEach(s => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td>${s.day}</td>
+        <td>${s.slot_date}</td>
+        <td>${s.start_time} - ${s.end_time}</td>
+        <td>${s.is_booked ? "Booked" : "Available"}</td>
+      `;
+
+      tbody.appendChild(row);
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load slots");
+  }
+}
+async function saveRemark() {
+  const remarks  = document.getElementById('modalRemarks').value.trim();
+  const feedback = document.getElementById('modalFeedback').value.trim();
+  const attendance = document.getElementById('modalAttendance').value;
+  const errEl    = document.getElementById('modalError');
+  errEl.textContent = '';
+
+  if (!remarks) { errEl.textContent = 'Please enter at least a remark.'; return; }
+
+  showLoading(true, 'Saving remark…');
+
+  // Find the booking
+  const booking = bookings.find(b => bookingKey(b) === modalBookingKey);
+
+  // Try to persist to backend via savePhaseEvaluation equivalent
+  // The backend DashboardService has savePhaseEvaluation but it targets pbl_phases.
+  // For slot-level remarks, we save locally and attempt a generic POST.
+  let saved = false;
+  try {
+   const res = await fetch(`${API_BASE}/update-booking-feedback`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded"
+  },
+body: `bookingId=${booking.booking_id}&remarks=${remarks}&feedback=${feedback}&attendance=${attendance}`});
+
+const data = await res.json();
+
+console.log("Save response:", data); // DEBUG
+
+if (data.status === "updated") {
+  saved = true;
+}
+  } catch(e) { /* endpoint not yet implemented */ }
+
+  // Always store locally so the UI reflects the change
+  remarkStore[modalBookingKey] = {
+    remarks, feedback,
+    grade: selectedGrade,
+    savedAt: new Date().toISOString()
+  };
+
+  showLoading(false);
+  closeModal();
+  toast(saved ? 'Remark saved successfully! ✅' : 'Failed to save ❌');
+
+  // Re-render active page
+ await loadBookings();   // 🔥 THIS IS THE FIX
+renderStats();
+renderBookingsTable();
+renderEvalList();
+renderTimeline();
+}
+
+// Click outside modal to close
+document.getElementById('remarkModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+</body>
+</html>

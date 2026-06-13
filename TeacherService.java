@@ -4,7 +4,7 @@ import java.time.*;
 public class TeacherService {
 
     // CREATE SLOTS (AUTO 30 MIN)
-    public void addSlots(int teacherId, String day, String start, String end) {
+    public void addSlots(int teacherId, String day, String date, String start, String end) {
         try (Connection con = DBConnection.getConnection()) {
 
             LocalTime startTime = LocalTime.parse(start);
@@ -13,13 +13,14 @@ public class TeacherService {
             while (startTime.isBefore(endTime)) {
                 LocalTime slotEnd = startTime.plusMinutes(30);
 
-                String query = "INSERT INTO slots (teacher_id, day, start_time, end_time, is_booked) VALUES (?, ?, ?, ?, FALSE)";
+                String query = "INSERT INTO slots (teacher_id, day,slot_date, start_time, end_time, is_booked) VALUES (?, ?, ?, ?, ?, FALSE)";
                 PreparedStatement ps = con.prepareStatement(query);
 
                 ps.setInt(1, teacherId);
                 ps.setString(2, day);
-                ps.setTime(3, Time.valueOf(startTime));
-                ps.setTime(4, Time.valueOf(slotEnd));
+               ps.setDate(3, java.sql.Date.valueOf(date));
+                ps.setTime(4, Time.valueOf(startTime));
+                ps.setTime(5, Time.valueOf(slotEnd));
 
                 ps.executeUpdate();
 

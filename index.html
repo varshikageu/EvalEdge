@@ -1242,7 +1242,8 @@ async function handleTeacherLogin() {
     document.getElementById('teacherDisplayName').textContent =
       state.teacherName + (state.isNewTeacher ? ` (ID: ${state.teacherId})` : '');
   }
-  goTo('teacherSlotsScreen');
+ window.location.href =
+  `${API_BASE}/teacher-dashboard?teacherId=${encodeURIComponent(state.teacherId)}&name=${encodeURIComponent(state.teacherName)}`;
 }
 
 // ── Add Slots (Teacher) ───────────────────────────────────────────────────────

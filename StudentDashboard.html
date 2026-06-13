@@ -575,6 +575,29 @@ body {
         <!-- populated by JS -->
       </div>
     </div>
+    <!-- ── MY BOOKED SLOTS ── -->
+<div class="section-title">My Booked Slots</div>
+
+<table style="width:100%; margin-top:20px;">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Time</th>
+      <th>Attendance</th>
+      <th>Remarks</th>
+      <th>Feedback</th>
+    </tr>
+  </thead>
+  <tbody id="myBookings"></tbody><div id="slotDetail" class="hidden" style="margin-top:20px; border:1px solid #444; padding:15px; border-radius:10px;">
+  <h3>Slot Details</h3>
+
+  <p><b>Date:</b> <span id="sdDate"></span></p>
+  <p><b>Time:</b> <span id="sdTime"></span></p>
+  <p><b>Attendance:</b> <span id="sdAttendance"></span></p>
+  <p><b>Remarks:</b> <span id="sdRemarks"></span></p>
+  <p><b>Feedback:</b> <span id="sdFeedback"></span></p>
+</div>
+</table>
 
     <!-- PBL Detail -->
     <div id="pblDetail" class="hidden">
@@ -675,6 +698,51 @@ catch(e){
   }
   showLoading(false);
 }
+async function loadMyBookings() {
+  try {
+    const res = await fetch(`${API_BASE}/student-bookings?studentId=${currentStudent.student_id}`);
+    const data = await res.json();
+
+    console.log("Bookings:", data); // DEBUG
+
+    const tbody = document.getElementById("myBookings");
+
+    if (!tbody) {
+      console.error("myBookings table not found");
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    // ❗ Handle empty bookings
+    if (!data.bookings || data.bookings.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align:center;">No bookings yet</td>
+        </tr>
+      `;
+      return;
+    }
+
+    data.bookings.forEach(b => {
+      const row = document.createElement("tr");
+row.style.cursor = "pointer";
+row.onclick = () => showSlotDetail(b);
+      row.innerHTML = `
+        <td>${b.date && b.date !== "null" ? b.date : "-"}</td>
+        <td>${b.time}</td>
+        <td>${b.attended ? "Present" : "Absent"}</td>
+        <td>${b.remarks || "-"}</td>
+        <td>${b.feedback || "-"}</td>
+      `;
+
+      tbody.appendChild(row);
+    });
+
+  } catch (err) {
+    console.error("Error loading bookings:", err);
+  }
+}
 
 // Enter key on login
 document.addEventListener('keydown', e => {
@@ -731,6 +799,7 @@ function renderDashboard() {
   document.getElementById('dashboard').classList.remove('hidden');
   document.getElementById('pblListSection').classList.remove('hidden');
   document.getElementById('pblDetail').classList.add('hidden');
+  loadMyBookings();
 }
 
 // ── Open PBL Detail ───────────────────────────────────────────────────────────
@@ -902,6 +971,15 @@ function getDemoPblDetail(studentId, pblId) {
     phases: [1,2,3].map(n => ({ phase_no:n, marks:0, max_marks:100, remarks:'Not evaluated yet', feedback:'', evaluated_at:'' })),
     meets:  { 1:[], 2:[], 3:[] }
   };
+}
+function showSlotDetail(b) {
+  document.getElementById("slotDetail").classList.remove("hidden");
+
+  document.getElementById("sdDate").innerText = b.date || "-";
+  document.getElementById("sdTime").innerText = b.time || "-";
+  document.getElementById("sdAttendance").innerText = b.attended ? "Present" : "Absent";
+  document.getElementById("sdRemarks").innerText = b.remarks || "-";
+  document.getElementById("sdFeedback").innerText = b.feedback || "-";
 }
 </script>
 </body>
